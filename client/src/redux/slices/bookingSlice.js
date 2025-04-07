@@ -1,12 +1,21 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosConfig';
 
 // Get available timeslots
 export const getAvailableTimeslots = createAsyncThunk(
   'bookings/getAvailableTimeslots',
-  async (date, { rejectWithValue }) => {
+  async (dateParam, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get(`/api/bookings/timeslots?date=${date}`);
+      // Extract the date part if it contains a timestamp
+      const date = dateParam.includes('?') ? dateParam.split('?')[0] : dateParam;
+      const timestamp = dateParam.includes('?') ? dateParam.split('?')[1] : '';
+      
+      // Add the timestamp as a separate parameter if present
+      const url = timestamp 
+        ? `/api/bookings/timeslots?date=${date}&${timestamp}` 
+        : `/api/bookings/timeslots?date=${date}`;
+      
+      const { data } = await axiosInstance.get(url);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -29,7 +38,7 @@ export const createBooking = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.post('/api/bookings', bookingData, config);
+      const { data } = await axiosInstance.post('/api/bookings', bookingData, config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -57,7 +66,7 @@ export const getBookings = createAsyncThunk(
         params,
       };
 
-      const { data } = await axios.get('/api/bookings', config);
+      const { data } = await axiosInstance.get('/api/bookings', config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -84,7 +93,7 @@ export const getBookingById = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.get(`/api/bookings/${id}`, config);
+      const { data } = await axiosInstance.get(`/api/bookings/${id}`, config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -112,7 +121,7 @@ export const updateBooking = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.put(`/api/bookings/${id}`, bookingData, config);
+      const { data } = await axiosInstance.put(`/api/bookings/${id}`, bookingData, config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -139,7 +148,7 @@ export const deleteBooking = createAsyncThunk(
         },
       };
 
-      await axios.delete(`/api/bookings/${id}`, config);
+      await axiosInstance.delete(`/api/bookings/${id}`, config);
       return id;
     } catch (error) {
       return rejectWithValue(

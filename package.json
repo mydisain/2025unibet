@@ -6,7 +6,7 @@
   "scripts": {
     "start": "node server/index.js",
     "server": "nodemon server/index.js",
-    "client": "PORT=3002 npm start --prefix client",
+    "client": "PORT=3009 npm start --prefix client",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "data:import": "node server/seeder",
     "data:destroy": "node server/seeder -d",

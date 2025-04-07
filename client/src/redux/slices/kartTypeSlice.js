@@ -1,12 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosConfig';
 
 // Get all kart types
 export const getKartTypes = createAsyncThunk(
   'kartTypes/getKartTypes',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get('/api/kart-types');
+      const { data } = await axiosInstance.get('/api/kart-types');
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -33,7 +33,7 @@ export const getKartTypesAdmin = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.get('/api/kart-types/admin/all', config);
+      const { data } = await axiosInstance.get('/api/kart-types/admin/all', config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -61,7 +61,7 @@ export const createKartType = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.post('/api/kart-types', kartTypeData, config);
+      const { data } = await axiosInstance.post('/api/kart-types', kartTypeData, config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -89,7 +89,7 @@ export const updateKartType = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.put(`/api/kart-types/${id}`, kartTypeData, config);
+      const { data } = await axiosInstance.put(`/api/kart-types/${id}`, kartTypeData, config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -116,7 +116,7 @@ export const deleteKartType = createAsyncThunk(
         },
       };
 
-      await axios.delete(`/api/kart-types/${id}`, config);
+      await axiosInstance.delete(`/api/kart-types/${id}`, config);
       return id;
     } catch (error) {
       return rejectWithValue(

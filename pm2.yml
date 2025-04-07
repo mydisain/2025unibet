@@ -1,0 +1,12 @@
+apps:
+  - name: MelUnibet
+    script: npm
+    args: run server
+    cwd: /data03/virt136548/domeenid/www.bookid.ee/test/  # Set the correct working directory
+    instances: 1
+    exec_mode: fork
+    watch: true
+    env:
+      NODE_ENV: production
+    env_development:
+      NODE_ENV: development

@@ -4,7 +4,11 @@ const colors = require('colors');
 const cors = require('cors');
 const path = require('path');
 const morgan = require('morgan');
+const mongoose = require('mongoose');
 const { connectDB } = require('./config/db');
+
+// Set strictQuery to false to prepare for Mongoose 7
+mongoose.set('strictQuery', false);
 const { errorHandler } = require('./middleware/errorMiddleware');
 
 // Load environment variables
@@ -18,7 +22,17 @@ const app = express();
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use(cors());
+
+// Configure CORS to allow requests from your Zone.ee domain
+app.use(cors({
+  origin: ['https://test.bookid.ee', 'http://localhost:3000', 'http://localhost:3009'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Add CORS preflight handling
+app.options('*', cors());
 
 // Development logging middleware
 if (process.env.NODE_ENV === 'development') {
@@ -49,6 +63,7 @@ if (process.env.NODE_ENV === 'production') {
 // Error handling middleware
 app.use(errorHandler);
 
+// Use the port provided by Render or default to 5000 for local development
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {

@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosConfig';
 
 // Get settings - using public endpoint
 export const getSettings = createAsyncThunk(
@@ -7,7 +7,7 @@ export const getSettings = createAsyncThunk(
   async (_, { rejectWithValue }) => {
     try {
       // Using the public endpoint that doesn't require authentication
-      const { data } = await axios.get('/api/settings/public');
+      const { data } = await axiosInstance.get('/api/settings/public');
       console.log('Settings fetched successfully:', data);
       return data;
     } catch (error) {
@@ -37,7 +37,7 @@ export const updateSettings = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.put('/api/settings', settingsData, config);
+      const { data } = await axiosInstance.put('/api/settings', settingsData, config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -65,7 +65,7 @@ export const addHoliday = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.post('/api/settings/holidays', holidayData, config);
+      const { data } = await axiosInstance.post('/api/settings/holidays', holidayData, config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -94,7 +94,7 @@ export const removeHoliday = createAsyncThunk(
         data: { date },
       };
 
-      const { data } = await axios.delete('/api/settings/holidays', config);
+      const { data } = await axiosInstance.delete('/api/settings/holidays', config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -122,7 +122,7 @@ export const updateEmailTemplate = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.put(
+      const { data } = await axiosInstance.put(
         `/api/settings/email-templates/${type}`,
         templateData,
         config
@@ -154,7 +154,7 @@ export const testEmailConfiguration = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.post(
+      const { data } = await axiosInstance.post(
         '/api/settings/test-email',
         { email },
         config

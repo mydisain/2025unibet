@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosConfig';
 
 // Get user from localStorage
 let userInfo = null;
@@ -40,7 +40,7 @@ export const login = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.post(
+      const { data } = await axiosInstance.post(
         '/api/users/login',
         { email, password },
         config
@@ -108,7 +108,7 @@ export const updateProfile = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.put('/api/users/profile', user, config);
+      const { data } = await axiosInstance.put('/api/users/profile', user, config);
 
       localStorage.setItem('userInfo', JSON.stringify(data));
 

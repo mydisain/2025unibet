@@ -1,12 +1,12 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosConfig';
 
 // Get all karts
 export const getKarts = createAsyncThunk(
   'karts/getKarts',
   async (_, { rejectWithValue }) => {
     try {
-      const { data } = await axios.get('/api/karts');
+      const { data } = await axiosInstance.get('/api/karts');
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -33,7 +33,7 @@ export const getKartsAdmin = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.get('/api/karts/admin/all', config);
+      const { data } = await axiosInstance.get('/api/karts/admin/all', config);
       return data;
     } catch (error) {
       return rejectWithValue(
@@ -94,7 +94,7 @@ export const createKart = createAsyncThunk(
         },
       };
 
-      const { data } = await axios.post('/api/karts', kartData, config);
+      const { data } = await axiosInstance.post('/api/karts', kartData, config);
       return data;
     } catch (error) {
       console.error('Create kart error:', error.response?.data || error.message);
@@ -152,7 +152,7 @@ export const updateKart = createAsyncThunk(
 
       console.log(`Making PUT request to /api/karts/${id}`, { kartData, authHeader: config.headers.Authorization.substring(0, 20) + '...' });
       
-      const { data } = await axios.put(`/api/karts/${id}`, kartData, config);
+      const { data } = await axiosInstance.put(`/api/karts/${id}`, kartData, config);
       console.log('Kart updated successfully:', data);
       return data;
     } catch (error) {
@@ -181,7 +181,7 @@ export const deleteKart = createAsyncThunk(
         },
       };
 
-      await axios.delete(`/api/karts/${id}`, config);
+      await axiosInstance.delete(`/api/karts/${id}`, config);
       return id;
     } catch (error) {
       return rejectWithValue(

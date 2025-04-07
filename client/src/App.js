@@ -12,6 +12,7 @@ import AdminLayout from './components/layout/AdminLayout';
 import HomePage from './pages/HomePage';
 import BookingPage from './pages/BookingPage';
 import ConfirmationPage from './pages/ConfirmationPage';
+import BookingSuccessPage from './pages/BookingSuccessPage';
 
 // Admin pages
 import LoginPage from './pages/admin/LoginPage';
@@ -51,6 +52,7 @@ function App() {
           <Route index element={<BookingPage />} />
           <Route path="booking" element={<BookingPage />} />
           <Route path="confirmation" element={<ConfirmationPage />} />
+          <Route path="booking-success" element={<BookingSuccessPage />} />
         </Route>
 
         {/* Admin Login */}

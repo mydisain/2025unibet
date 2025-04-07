@@ -1,0 +1,173 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useSelector, useDispatch } from 'react-redux';
+import { useTranslation } from 'react-i18next';
+import {
+  Container,
+  Typography,
+  Box,
+  Stepper,
+  Step,
+  StepLabel,
+} from '@mui/material';
+
+// Import components
+import DatePicker from '../components/booking/DatePicker';
+import KartSelectionDialog from '../components/booking/KartSelectionDialog';
+
+// Import actions
+import { getKarts } from '../redux/slices/kartSlice';
+
+const BookingPage = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+  
+  // Define steps using translation keys
+  const steps = [t('select_date_and_time'), t('your_details')];
+  
+  const [activeStep, setActiveStep] = useState(0);
+  const [selectedTimeslots, setSelectedTimeslots] = useState([]);
+  const [selectedKarts, setSelectedKarts] = useState([]);
+  const [kartQuantities, setKartQuantities] = useState({});
+  
+  // Dialog state
+  const [kartDialogOpen, setKartDialogOpen] = useState(false);
+  const [currentTimeslot, setCurrentTimeslot] = useState(null);
+  const [initialKartSelection, setInitialKartSelection] = useState(null);
+  
+  const { 
+    karts = [], 
+    loading: kartsLoading, 
+    error: kartsError 
+  } = useSelector((state) => state.karts) || {};
+  
+  const {
+    settings,
+  } = useSelector((state) => state.settings) || {};
+  
+  // Fetch karts when component mounts
+  useEffect(() => {
+    dispatch(getKarts());
+  }, [dispatch]);
+  
+  // Reset kart selections when dialog opens or closes
+  useEffect(() => {
+    // When dialog opens and we have initial selection
+    if (kartDialogOpen && selectedTimeslots.length > 0 && initialKartSelection) {
+      // Only set if not already set
+      if (selectedKarts.length === 0) {
+        setSelectedKarts(initialKartSelection.karts);
+        setKartQuantities(initialKartSelection.quantities);
+      }
+    }
+    // When dialog closes, reset selections if no timeslots are selected
+    if (!kartDialogOpen && selectedTimeslots.length === 0) {
+      setSelectedKarts([]);
+      setKartQuantities({});
+    }
+  }, [kartDialogOpen, selectedTimeslots.length, initialKartSelection, selectedKarts.length]);
+  
+  const handleTimeslotSelect = (timeslot) => {
+    // Set the current timeslot and open the dialog
+    setCurrentTimeslot(timeslot);
+    setKartDialogOpen(true);
+  };
+  
+  const handleKartDialogClose = () => {
+    setKartDialogOpen(false);
+    setCurrentTimeslot(null);
+  };
+  
+  const handleKartDialogConfirm = () => {
+    if (currentTimeslot && selectedKarts.length > 0) {
+      // If this is the first timeslot selection, save the initial kart selection
+      if (selectedTimeslots.length === 0) {
+        setInitialKartSelection({
+          karts: [...selectedKarts],
+          quantities: {...kartQuantities}
+        });
+      }
+      
+      // Add the timeslot to selected timeslots
+      setSelectedTimeslots([...selectedTimeslots, currentTimeslot]);
+      setKartDialogOpen(false);
+      setCurrentTimeslot(null);
+    }
+  };
+  
+  const handleKartSelect = (kartId, isSelected) => {
+    if (isSelected) {
+      // Check if adding this kart would exceed the maximum allowed
+      const totalCurrentKarts = Object.values(kartQuantities).reduce((sum, qty) => sum + qty, 0);
+      if (totalCurrentKarts < (settings?.maxKartsPerTimeslot || 5)) {
+        setSelectedKarts([...selectedKarts, kartId]);
+        setKartQuantities(prev => ({ ...prev, [kartId]: 1 }));
+      } else {
+        // Could add a notification here that max karts limit is reached
+        alert(t('maximum_karts_reached', { max: settings?.maxKartsPerTimeslot || 5 }));
+      }
+    } else {
+      setSelectedKarts(selectedKarts.filter((id) => id !== kartId));
+      setKartQuantities(prev => {
+        const newQuantities = { ...prev };
+        delete newQuantities[kartId];
+        return newQuantities;
+      });
+    }
+  };
+  
+  const handleQuantityChange = (kartId, newQuantity) => {
+    // Calculate the total quantity of all karts after this change
+    const otherKartsQuantity = Object.entries(kartQuantities)
+      .filter(([id]) => id !== kartId)
+      .reduce((sum, [, qty]) => sum + qty, 0);
+    
+    const totalAfterChange = otherKartsQuantity + newQuantity;
+    
+    // Check if the new total would exceed the maximum allowed
+    if (totalAfterChange <= (settings?.maxKartsPerTimeslot || 5)) {
+      setKartQuantities(prev => ({ ...prev, [kartId]: newQuantity }));
+    } else {
+      alert(t('maximum_karts_reached', { max: settings?.maxKartsPerTimeslot || 5 }));
+    }
+  };
+  
+  return (
+    <Container maxWidth="lg">
+      <Typography variant="h4" component="h1" gutterBottom sx={{ mt: 4 }}>
+        {t('book_now')}
+      </Typography>
+      
+      <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+      
+      <Box sx={{ mt: 4 }}>
+        <DatePicker onTimeslotSelect={handleTimeslotSelect} />
+      </Box>
+      
+      {/* Kart selection dialog */}
+      <KartSelectionDialog
+        open={kartDialogOpen}
+        onClose={handleKartDialogClose}
+        onConfirm={handleKartDialogConfirm}
+        timeslot={currentTimeslot}
+        karts={karts}
+        selectedKarts={selectedKarts}
+        kartQuantities={kartQuantities}
+        handleKartSelect={handleKartSelect}
+        handleQuantityChange={handleQuantityChange}
+        kartsLoading={kartsLoading}
+        kartsError={kartsError}
+        isFirstTimeslot={selectedTimeslots.length === 0}
+      />
+    </Container>
+  );
+};
+
+export default BookingPage;

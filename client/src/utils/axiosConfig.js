@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create Axios instance
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:5001', // Make sure this matches your backend URL
+  baseURL: 'https://two025unibet-kardikeskus.onrender.com', // Production backend URL on Render.com
 });
 
 // Request interceptor for API calls

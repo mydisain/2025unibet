@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unibet Kardikeskus API Tester</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #e63946;
+            text-align: center;
+        }
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+        }
+        .endpoint-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .endpoint-list li {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f1faee;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        .endpoint-list li:hover {
+            background-color: #a8dadc;
+        }
+        pre {
+            background-color: #1d3557;
+            color: #f1faee;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+        button {
+            background-color: #457b9d;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1d3557;
+        }
+        .login-form {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .login-form input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Unibet Kardikeskus API Tester</h1>
+    
+    <div class="container">
+        <div class="card">
+            <h2>API Endpoints</h2>
+            <ul class="endpoint-list">
+                <li onclick="fetchData('/api/karts')">Get All Karts</li>
+                <li onclick="fetchData('/api/kart-types')">Get All Kart Types</li>
+                <li onclick="fetchData('/api/bookings')">Get All Bookings (Auth Required)</li>
+                <li onclick="fetchData('/api/settings')">Get Settings</li>
+            </ul>
+
+            <h2>Authentication</h2>
+            <div class="login-form">
+                <input type="email" id="email" placeholder="Email" value="admin@example.com">
+                <input type="password" id="password" placeholder="Password" value="123456">
+                <button onclick="login()">Login</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Response</h2>
+            <pre id="response">Select an endpoint to see the response...</pre>
+        </div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token');
+        
+        async function fetchData(endpoint) {
+            try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                if (token && endpoint !== '/api/karts' && endpoint !== '/api/kart-types') {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch(`http://localhost:5001${endpoint}`, {
+                    method: 'GET',
+                    headers: headers
+                });
+                
+                const data = await response.json();
+                document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                document.getElementById('response').textContent = `Error: ${error.message}`;
+            }
+        }
+        
+        async function login() {
+            try {
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                const response = await fetch('http://localhost:5001/api/users/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.token) {
+                    token = data.token;
+                    localStorage.setItem('token', token);
+                    document.getElementById('response').textContent = 'Login successful! Token saved.';
+                } else {
+                    document.getElementById('response').textContent = JSON.stringify(data, null, 2);
+                }
+            } catch (error) {
+                document.getElementById('response').textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
