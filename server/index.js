@@ -86,8 +86,8 @@ if (process.env.NODE_ENV === 'production') {
 // Error handling middleware
 app.use(errorHandler);
 
-// Use the port provided by Render or default to 5000 for local development
-const PORT = process.env.PORT || 5000;
+// Use the port provided by Render or default to 5004 for local development
+const PORT = process.env.PORT || 5004;
 
 app.listen(PORT, () => {
   console.log(

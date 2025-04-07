@@ -35,12 +35,16 @@ import {
   ListItemText,
   Card,
   CardContent,
+  Tabs,
+  Tab,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import ListAltIcon from '@mui/icons-material/ListAlt';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { format } from 'date-fns';
@@ -48,6 +52,9 @@ import { et } from 'date-fns/locale';
 
 // Import booking actions
 import { getBookings, updateBooking, deleteBooking } from '../../redux/slices/bookingSlice';
+
+// Import AdminTimeslotView component
+import AdminTimeslotView from '../../components/admin/AdminTimeslotView';
 
 const BookingsPage = () => {
   const { t } = useTranslation();
@@ -60,6 +67,7 @@ const BookingsPage = () => {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
+  const [viewMode, setViewMode] = useState(0); // 0 = timeslot view, 1 = list view
   
   // Get bookings from Redux store
   const { bookings = [], loading, error } = useSelector((state) => state.bookings);
@@ -68,6 +76,11 @@ const BookingsPage = () => {
   useEffect(() => {
     dispatch(getBookings());
   }, [dispatch]);
+  
+  // Handle tab change
+  const handleTabChange = (event, newValue) => {
+    setViewMode(newValue);
+  };
   
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -158,106 +171,117 @@ const BookingsPage = () => {
   
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">
-          {t('bookings')}
-        </Typography>
-        <Button 
-          variant="contained" 
-          color="primary"
-          onClick={() => navigate('/admin/create-booking')}
-        >
-          {t('create_booking')}
-        </Button>
+      <Typography variant="h4" gutterBottom>
+        {t('bookings')}
+      </Typography>
+      
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs value={viewMode} onChange={handleTabChange} aria-label="booking view tabs">
+          <Tab icon={<CalendarMonthIcon />} label={t('timeslot_view', 'Timeslot View')} />
+          <Tab icon={<ListAltIcon />} label={t('list_view', 'List View')} />
+        </Tabs>
       </Box>
       
-      {loading ? (
+      {loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
           <CircularProgress />
         </Box>
-      ) : error ? (
+      )}
+      
+      {error && (
         <Alert severity="error" sx={{ my: 2 }}>
           {error}
         </Alert>
-      ) : (
-        <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-          <TableContainer sx={{ maxHeight: 440 }}>
-            <Table stickyHeader aria-label="bookings table">
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t('booking_id')}</TableCell>
-                  <TableCell>{t('customer')}</TableCell>
-                  <TableCell>{t('date')}</TableCell>
-                  <TableCell>{t('time')}</TableCell>
-                  <TableCell>{t('karts')}</TableCell>
-                  <TableCell>{t('status')}</TableCell>
-                  <TableCell align="right">{t('actions')}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {bookings
-                  .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                  .map((booking) => (
-                    <TableRow hover key={booking._id}>
-                      <TableCell component="th" scope="row">
-                        {booking._id}
-                      </TableCell>
-                      <TableCell>{booking.customerName}</TableCell>
-                      <TableCell>{booking.date}</TableCell>
-                      <TableCell>{booking.startTime && booking.endTime ? `${booking.startTime} - ${booking.endTime}` : booking.timeslot || 'N/A'}</TableCell>
-                      <TableCell>
-                        {booking.kartSelections && booking.kartSelections.length > 0 
-                          ? booking.kartSelections.map(selection => {
-                              const kartName = selection.kart && typeof selection.kart === 'object' ? selection.kart.name : 'Kart';
-                              return `${kartName} (${selection.quantity})`;
-                            }).join(', ')
-                          : booking.karts && booking.karts.length > 0
-                            ? booking.karts.map(kart => kart.name || 'Kart').join(', ')
-                            : 'N/A'
-                        }
-                      </TableCell>
-                      <TableCell>
-                        <Typography sx={{ color: getStatusColor(booking.status) }}>
-                          {booking.status}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        <IconButton
-                          size="small"
-                          onClick={() => handleOpenViewDialog(booking)}
-                        >
-                          <VisibilityIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => handleOpenEditDialog(booking)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleOpenDeleteConfirm(booking)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </TableCell>
+      )}
+      
+      {!loading && !error && (
+        <>
+          {/* Timeslot View */}
+          {viewMode === 0 && (
+            <Paper sx={{ p: 2, mb: 3 }}>
+              <AdminTimeslotView />
+            </Paper>
+          )}
+          
+          {/* List View */}
+          {viewMode === 1 && (
+            <Paper sx={{ width: '100%', mb: 2 }}>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>{t('id')}</TableCell>
+                      <TableCell>{t('customer')}</TableCell>
+                      <TableCell>{t('date')}</TableCell>
+                      <TableCell>{t('time')}</TableCell>
+                      <TableCell>{t('status')}</TableCell>
+                      <TableCell>{t('actions')}</TableCell>
                     </TableRow>
-                  ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-          <TablePagination
-            rowsPerPageOptions={[5, 10, 25]}
-            component="div"
-            count={bookings.length}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-          />
-        </Paper>
+                  </TableHead>
+                  <TableBody>
+                    {bookings
+                      .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                      .map((booking) => (
+                        <TableRow key={booking._id}>
+                          <TableCell>{booking._id.substring(0, 8)}...</TableCell>
+                          <TableCell>{booking.customerName}</TableCell>
+                          <TableCell>
+                            {booking.date ? new Date(booking.date).toLocaleDateString() : ''}
+                          </TableCell>
+                          <TableCell>
+                            {booking.startTime} - {booking.endTime}
+                          </TableCell>
+                          <TableCell>
+                            <Box
+                              sx={{
+                                backgroundColor: getStatusColor(booking.status),
+                                color: 'white',
+                                borderRadius: 1,
+                                px: 1,
+                                py: 0.5,
+                                display: 'inline-block',
+                              }}
+                            >
+                              {t(booking.status)}
+                            </Box>
+                          </TableCell>
+                          <TableCell>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenViewDialog(booking)}
+                            >
+                              <VisibilityIcon />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenEditDialog(booking)}
+                            >
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              size="small"
+                              onClick={() => handleOpenDeleteConfirm(booking)}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+              <TablePagination
+                rowsPerPageOptions={[5, 10, 25]}
+                component="div"
+                count={bookings.length}
+                rowsPerPage={rowsPerPage}
+                page={page}
+                onPageChange={handleChangePage}
+                onRowsPerPageChange={handleChangeRowsPerPage}
+              />
+            </Paper>
+          )}
+        </>
       )}
       
       {/* View Booking Dialog */}
