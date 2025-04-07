@@ -69,7 +69,7 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
     const maxKarts = getMaxKartsPerTimeslot();
     
     // Get the server-provided availability (which accounts for previous bookings)
-    let serverAvailability = maxKarts;
+    let serverAvailability = 0;
     if (timeslot.totalAvailability !== undefined) {
       serverAvailability = timeslot.totalAvailability;
     } else if (timeslot.kartAvailability) {
@@ -95,7 +95,8 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
     }
     
     // Calculate final availability by subtracting only the karts selected for this specific timeslot
-    const finalAvailability = Math.max(0, serverAvailability - selectedKartsCount);
+    // and respecting the global max karts per timeslot setting
+    const finalAvailability = Math.min(maxKarts, Math.max(0, serverAvailability - selectedKartsCount));
     
     // Log detailed information for debugging
     console.log(`Timeslot ${timeslot.startTime}-${timeslot.endTime}:`, {
@@ -103,6 +104,7 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
       serverAvailability,
       selectedKartsCount,
       finalAvailability,
+      maxKartsPerTimeslot: maxKarts,
       timeslotKey: `${timeslot.startTime}-${timeslot.endTime}`,
       timeslotQuantities: isSelected ? timeslotKartQuantities[`${timeslot.startTime}-${timeslot.endTime}`] : 'none'
     });
@@ -117,15 +119,7 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
   
   // Get the total karts for a timeslot (considering existing bookings)
   const getTotalKartsForTimeslot = (timeslot) => {
-    // If server provides totalAvailability, use that as the base
-    if (timeslot.totalAvailability !== undefined) {
-      return timeslot.totalAvailability;
-    } else if (timeslot.kartAvailability) {
-      // Fallback calculation if the server doesn't provide totalAvailability
-      return timeslot.kartAvailability.reduce((total, kart) => total + kart.available, 0);
-    }
-    
-    // Default to max karts from settings
+    // Always use the global max karts setting as the total
     return getMaxKartsPerTimeslot();
   };
   
