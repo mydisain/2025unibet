@@ -75,55 +75,6 @@ const loginUser = asyncHandler(async (req, res) => {
 // @desc    Register a new user
 // @route   POST /api/users
 // @access  Private/Admin
-
-// @desc    Create initial admin user (TEMPORARY - REMOVE AFTER USE)
-// @route   POST /api/users/create-admin
-// @access  Public
-const createAdminUser = asyncHandler(async (req, res) => {
-  // Check if any admin user already exists
-  const adminExists = await User.findOne({ isAdmin: true });
-  
-  if (adminExists) {
-    res.status(400);
-    throw new Error('Admin user already exists');
-  }
-
-  const { name, email, password } = req.body;
-
-  // Check if user exists
-  const userExists = await User.findOne({ email });
-
-  if (userExists) {
-    res.status(400);
-    throw new Error('User already exists');
-  }
-
-  // Create user with admin privileges
-  const user = await User.create({
-    name,
-    email,
-    password,
-    isAdmin: true,
-  });
-
-  if (user) {
-    console.log('Admin user created successfully');
-    res.status(201).json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
-      token: generateToken(user._id),
-    });
-  } else {
-    res.status(400);
-    throw new Error('Invalid user data');
-  }
-});
-
-// @desc    Register a new user
-// @route   POST /api/users
-// @access  Private/Admin
 const registerUser = asyncHandler(async (req, res) => {
   const { name, email, password, isAdmin } = req.body;
 
@@ -285,5 +236,4 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
-  createAdminUser,
 };

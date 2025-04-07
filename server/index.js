@@ -59,9 +59,6 @@ app.use(cors({
 // Add CORS preflight handling for all routes
 app.options('*', cors());
 
-// Special route-specific CORS for admin creation
-app.use('/api/users/create-admin', cors({ origin: '*' }));
-
 // Development logging middleware
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
