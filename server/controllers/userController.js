@@ -17,30 +17,56 @@ const generateToken = (id) => {
 // @access  Public
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
-
-  // Check for user email
-  const user = await User.findOne({ email });
-
-  if (user && (await user.matchPassword(password))) {
-    // Generate token with proper ID handling
-    const token = generateToken(user._id);
+  
+  console.log('Login attempt:', { email, passwordLength: password?.length });
+  console.log('JWT_SECRET exists:', !!process.env.JWT_SECRET);
+  console.log('JWT_SECRET first 5 chars:', process.env.JWT_SECRET ? process.env.JWT_SECRET.substring(0, 5) + '...' : 'undefined');
+  
+  try {
+    // Check for user email
+    const user = await User.findOne({ email });
+    console.log('User found:', !!user);
     
-    console.log('User login successful:', {
-      id: user._id.toString(),
-      email: user.email,
-      isAdmin: user.isAdmin,
-      tokenGenerated: !!token
-    });
+    if (!user) {
+      console.error(`No user found with email: ${email}`);
+      res.status(401);
+      throw new Error('Invalid email or password');
+    }
     
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      isAdmin: user.isAdmin,
-      token: token,
-    });
-  } else {
-    console.error('Login failed for email:', email);
+    // Log password hash info for debugging
+    console.log('Stored password hash:', user.password.substring(0, 10) + '...');
+    console.log('Password hash length:', user.password.length);
+    
+    // Try to match password
+    const isMatch = await user.matchPassword(password);
+    console.log('Password match result:', isMatch);
+    
+    if (isMatch) {
+      // Generate token with proper ID handling
+      const token = generateToken(user._id);
+      
+      console.log('User login successful:', {
+        id: user._id.toString(),
+        email: user.email,
+        isAdmin: user.isAdmin,
+        tokenGenerated: !!token,
+        tokenLength: token ? token.length : 0
+      });
+      
+      res.json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        token: token,
+      });
+    } else {
+      console.error(`Password mismatch for email: ${email}`);
+      res.status(401);
+      throw new Error('Invalid email or password');
+    }
+  } catch (error) {
+    console.error('Login error details:', error);
     res.status(401);
     throw new Error('Invalid email or password');
   }
