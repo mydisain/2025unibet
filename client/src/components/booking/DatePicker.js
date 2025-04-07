@@ -236,7 +236,7 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
             color: isSelected ? 'white' : 'rgba(0, 0, 0, 0.6)'
           }}
         >
-          {t('available_places')}: {availableKarts} / {totalKarts}
+          {t('available_places')}: {availableKarts} / 9
         </Box>
       </Button>
     );
