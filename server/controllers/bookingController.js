@@ -411,10 +411,13 @@ const getAvailableTimeslots = asyncHandler(async (req, res) => {
     const rawTotalKarts = kartAvailability.reduce((total, kart) => total + kart.total, 0);
     
     // Limit by the max karts per timeslot setting
-    const totalAvailability = Math.min(rawTotalAvailability, maxKartsPerTimeslot);
     const totalKarts = Math.min(rawTotalKarts, maxKartsPerTimeslot);
     
-    console.log(`Timeslot ${startTime}: raw total=${rawTotalKarts}, max setting=${maxKartsPerTimeslot}, limited total=${totalKarts}, booked=${totalBooked}, available=${totalAvailability}`);
+    // Calculate availability based on the max karts setting, not the raw total
+    // If totalBooked >= maxKartsPerTimeslot, then availability should be 0
+    const totalAvailability = Math.max(0, maxKartsPerTimeslot - totalBooked);
+    
+    console.log(`Timeslot ${startTime}: raw total=${rawTotalKarts}, max setting=${maxKartsPerTimeslot}, limited total=${totalKarts}, booked=${totalBooked}, available=${totalAvailability}, raw available=${rawTotalAvailability}`);
     
     return {
       ...timeslot,
