@@ -23,9 +23,9 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Configure CORS to allow requests from your Zone.ee domain
+// Configure CORS to allow requests from your Zone.ee domain and local file system
 app.use(cors({
-  origin: ['https://test.bookid.ee', 'http://localhost:3000', 'http://localhost:3009'],
+  origin: ['https://test.bookid.ee', 'http://localhost:3000', 'http://localhost:3009', 'null'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -33,6 +33,9 @@ app.use(cors({
 
 // Add CORS preflight handling
 app.options('*', cors());
+
+// Special route-specific CORS for admin creation
+app.use('/api/users/create-admin', cors({ origin: '*' }));
 
 // Development logging middleware
 if (process.env.NODE_ENV === 'development') {
