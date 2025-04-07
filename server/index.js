@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const morgan = require('morgan');
 const mongoose = require('mongoose');
+const fs = require('fs');
 const { connectDB } = require('./config/db');
 
 // Set strictQuery to false to prepare for Mongoose 7
@@ -13,6 +14,19 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 
 // Load environment variables
 dotenv.config();
+
+// Try to read JWT_SECRET from the secret file if it exists
+try {
+  if (fs.existsSync('/etc/secrets/JWT_SECRET')) {
+    const jwtSecret = fs.readFileSync('/etc/secrets/JWT_SECRET', 'utf8').trim();
+    process.env.JWT_SECRET = jwtSecret;
+    console.log('JWT_SECRET loaded from secret file');
+  } else {
+    console.log('JWT_SECRET secret file not found, using environment variable');
+  }
+} catch (error) {
+  console.error('Error reading JWT_SECRET from secret file:', error.message);
+}
 
 // Connect to database
 connectDB();
