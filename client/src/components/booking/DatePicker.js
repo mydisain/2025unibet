@@ -114,7 +114,7 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
   
   // Get the max karts per timeslot from settings
   const getMaxKartsPerTimeslot = () => {
-    return settings?.maxKartsPerTimeslot || 5; // Default to 5 if not set
+    return settings?.maxKartsPerTimeslot || 9; // Default to 9 if not set
   };
   
   // Get the total karts for a timeslot (considering existing bookings)
@@ -159,15 +159,39 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
       ts.startTime === timeslot.startTime && ts.endTime === timeslot.endTime
     );
     
-    // Calculate available karts for this timeslot
+    // Get the max karts per timeslot from admin settings
     const maxKartsPerTimeslot = getMaxKartsPerTimeslot();
-    let availableKarts = getTotalAvailability(timeslot);
     
-    // Ensure we don't show more available karts than the max setting
-    availableKarts = Math.min(availableKarts, maxKartsPerTimeslot);
+    // Calculate available karts for this timeslot
+    // Start with server-provided availability
+    let serverAvailability = 0;
+    if (timeslot.totalAvailability !== undefined) {
+      serverAvailability = timeslot.totalAvailability;
+    } else if (timeslot.kartAvailability) {
+      serverAvailability = timeslot.kartAvailability.reduce((total, kart) => total + kart.available, 0);
+    }
     
-    // Use the max karts setting as the total
+    // Calculate selected karts for this specific timeslot
+    let selectedKartsCount = 0;
+    if (isSelected) {
+      const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
+      const timeslotQuantities = timeslotKartQuantities[timeslotKey] || {};
+      selectedKartsCount = Object.values(timeslotQuantities).reduce((sum, qty) => sum + qty, 0);
+    }
+    
+    // Calculate final availability, capped at the max karts setting
+    const availableKarts = Math.min(maxKartsPerTimeslot, Math.max(0, serverAvailability - selectedKartsCount));
+    
+    // Always use the max karts setting from admin as the total
     const totalKarts = maxKartsPerTimeslot;
+    
+    console.log(`Timeslot ${timeslot.startTime}-${timeslot.endTime}:`, {
+      maxKartsPerTimeslot,
+      serverAvailability,
+      selectedKartsCount,
+      availableKarts,
+      totalKarts
+    });
     
     // Apply a special style if this timeslot is selected
     const buttonStyle = {
