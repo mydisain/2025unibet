@@ -160,8 +160,14 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
     );
     
     // Calculate available karts for this timeslot
-    const availableKarts = getTotalAvailability(timeslot);
-    const totalKarts = getTotalKartsForTimeslot(timeslot);
+    const maxKartsPerTimeslot = getMaxKartsPerTimeslot();
+    let availableKarts = getTotalAvailability(timeslot);
+    
+    // Ensure we don't show more available karts than the max setting
+    availableKarts = Math.min(availableKarts, maxKartsPerTimeslot);
+    
+    // Use the max karts setting as the total
+    const totalKarts = maxKartsPerTimeslot;
     
     // Apply a special style if this timeslot is selected
     const buttonStyle = {
