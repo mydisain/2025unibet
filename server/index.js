@@ -39,18 +39,7 @@ app.use(express.urlencoded({ extended: false }));
 
 // Configure CORS to allow requests from your Zone.ee domain and local file system
 app.use(cors({
-  origin: function(origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl requests)
-    if(!origin) return callback(null, true);
-    
-    const allowedOrigins = ['https://test.bookid.ee', 'http://localhost:3000', 'http://localhost:3009'];
-    if(allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      callback(null, true);
-    } else {
-      console.log('CORS origin rejected:', origin);
-      callback(null, true); // Temporarily allow all origins for debugging
-    }
-  },
+  origin: '*', // Allow all origins temporarily to debug the issue
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -58,6 +47,15 @@ app.use(cors({
 
 // Add CORS preflight handling for all routes
 app.options('*', cors());
+
+// Add specific CORS headers to all responses
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  next();
+});
 
 // Development logging middleware
 if (process.env.NODE_ENV === 'development') {
