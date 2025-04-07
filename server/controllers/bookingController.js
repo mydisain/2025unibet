@@ -234,11 +234,14 @@ const getAvailableTimeslots = asyncHandler(async (req, res) => {
     return res.json([]);
   }
   
-  // Generate all possible timeslots for the day
+  // Get all possible timeslots for the day
   const timeslots = generateTimeslots(workingHours.openTime, workingHours.closeTime, timeslotDuration);
   
   // Get all karts
   const karts = await Kart.find({ isActive: true });
+  
+  // Get max karts per timeslot from settings
+  const maxKartsPerTimeslot = setting.maxKartsPerTimeslot || 9;
   
   console.log('Querying bookings for date:', date);
   
@@ -403,11 +406,15 @@ const getAvailableTimeslots = asyncHandler(async (req, res) => {
     });
     
     // Calculate total available places for this timeslot
-    const totalAvailability = kartAvailability.reduce((total, kart) => total + kart.available, 0);
+    const rawTotalAvailability = kartAvailability.reduce((total, kart) => total + kart.available, 0);
     const totalBooked = kartAvailability.reduce((total, kart) => total + kart.booked, 0);
-    const totalKarts = kartAvailability.reduce((total, kart) => total + kart.total, 0);
+    const rawTotalKarts = kartAvailability.reduce((total, kart) => total + kart.total, 0);
     
-    console.log(`Timeslot ${startTime}: total=${totalKarts}, booked=${totalBooked}, available=${totalAvailability}`);
+    // Limit by the max karts per timeslot setting
+    const totalAvailability = Math.min(rawTotalAvailability, maxKartsPerTimeslot);
+    const totalKarts = Math.min(rawTotalKarts, maxKartsPerTimeslot);
+    
+    console.log(`Timeslot ${startTime}: raw total=${rawTotalKarts}, max setting=${maxKartsPerTimeslot}, limited total=${totalKarts}, booked=${totalBooked}, available=${totalAvailability}`);
     
     return {
       ...timeslot,
