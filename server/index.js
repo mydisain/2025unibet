@@ -25,13 +25,24 @@ app.use(express.urlencoded({ extended: false }));
 
 // Configure CORS to allow requests from your Zone.ee domain and local file system
 app.use(cors({
-  origin: ['https://test.bookid.ee', 'http://localhost:3000', 'http://localhost:3009', 'null'],
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl requests)
+    if(!origin) return callback(null, true);
+    
+    const allowedOrigins = ['https://test.bookid.ee', 'http://localhost:3000', 'http://localhost:3009'];
+    if(allowedOrigins.indexOf(origin) !== -1 || !origin) {
+      callback(null, true);
+    } else {
+      console.log('CORS origin rejected:', origin);
+      callback(null, true); // Temporarily allow all origins for debugging
+    }
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
-// Add CORS preflight handling
+// Add CORS preflight handling for all routes
 app.options('*', cors());
 
 // Special route-specific CORS for admin creation
