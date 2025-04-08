@@ -1,8 +1,14 @@
 import axios from 'axios';
 
+// Determine if we're in development or production
+const isDevelopment = process.env.NODE_ENV === 'development';
+
 // Create Axios instance
 const axiosInstance = axios.create({
-  baseURL: 'https://two025unibet-kardikeskus.onrender.com', // Production backend URL on Render.com
+  // Use local server in development, production server otherwise
+  baseURL: isDevelopment 
+    ? '' // Empty baseURL will use the proxy setting in package.json
+    : 'https://two025unibet-kardikeskus.onrender.com', // Production backend URL on Render.com
 });
 
 // Request interceptor for API calls
