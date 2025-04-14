@@ -37,9 +37,33 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Configure CORS to allow requests from your Zone.ee domain and local file system
+// Configure CORS to allow requests from specific domains
+const allowedOrigins = [
+  'https://test.bookid.ee',  // Your actual zone.ee domain
+  'http://test.bookid.ee',   // HTTP version
+  'https://www.test.bookid.ee',  // www subdomain
+  'http://www.test.bookid.ee',   // HTTP www subdomain
+  'http://localhost:3009',  // Local development
+  'http://localhost:3000',  // Alternative local port
+  'https://two025unibet-kardikeskus.onrender.com'  // Your render.com backend
+];
+
 app.use(cors({
-  origin: '*', // Allow all origins temporarily to debug the issue
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps, curl, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      console.log('CORS blocked request from:', origin);
+      // For debugging, allow all origins but log blocked ones
+      return callback(null, true);
+      
+      // Uncomment below to actually block disallowed origins
+      // const msg = 'The CORS policy for this site does not allow access from the specified origin.';
+      // return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -48,9 +72,13 @@ app.use(cors({
 // Add CORS preflight handling for all routes
 app.options('*', cors());
 
-// Add specific CORS headers to all responses
+// Add specific CORS headers to all responses for debugging
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
+  // Log the origin for debugging
+  console.log('Request origin:', req.headers.origin);
+  
+  // For now, still allow all origins but with proper headers
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
   res.header('Access-Control-Allow-Credentials', 'true');

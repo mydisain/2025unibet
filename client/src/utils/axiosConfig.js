@@ -1,15 +1,16 @@
 import axios from 'axios';
 
-// Determine if we're in development or production
-const isDevelopment = process.env.NODE_ENV === 'development';
+// Always use the production URL for backend requests
+// This ensures consistent behavior regardless of environment
+console.log('Configuring axios to always use production backend URL');
 
-// Create Axios instance
+// Create Axios instance with explicit production URL
 const axiosInstance = axios.create({
-  // Use local server in development, production server otherwise
-  baseURL: isDevelopment 
-    ? '' // Empty baseURL will use the proxy setting in package.json
-    : 'https://two025unibet-kardikeskus.onrender.com', // Production backend URL on Render.com
+  baseURL: 'https://two025unibet-kardikeskus.onrender.com', // Production backend URL on Render.com
 });
+
+// Log the baseURL for debugging
+console.log('Axios baseURL:', axiosInstance.defaults.baseURL);
 
 // Request interceptor for API calls
 axiosInstance.interceptors.request.use(
