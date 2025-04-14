@@ -33,7 +33,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
 import { format } from 'date-fns';
 import { et } from 'date-fns/locale';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosConfig';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
@@ -100,7 +100,8 @@ const AdminTimeslotView = () => {
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log('Fetching timeslots for date:', formattedDate);
-      const response = await axios.get(`/api/bookings/timeslots?date=${formattedDate}`);
+      // Use axiosInstance instead of axios to ensure the request goes to the backend
+      const response = await axiosInstance.get(`/api/bookings/timeslots?date=${formattedDate}`);
       
       // Ensure response.data is an array
       if (Array.isArray(response.data)) {
