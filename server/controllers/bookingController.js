@@ -224,9 +224,14 @@ const getAvailableTimeslots = asyncHandler(async (req, res) => {
   const workingHours = setting.workingHours.find(wh => wh.day === dayOfWeek);
   
   // Check if it's a holiday
-  const isHoliday = setting.holidays.some(holiday => {
-    const holidayDate = new Date(holiday.date);
-    return holidayDate.toDateString() === requestDate.toDateString();
+  const isHoliday = setting.holidays && setting.holidays.some(holiday => {
+    try {
+      const holidayDate = new Date(holiday.date);
+      return holidayDate.toDateString() === requestDateObj.toDateString();
+    } catch (error) {
+      console.error('Error comparing holiday date:', error);
+      return false;
+    }
   });
   
   // If closed or holiday, return empty array
