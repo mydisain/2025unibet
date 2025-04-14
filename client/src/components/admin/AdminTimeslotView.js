@@ -99,11 +99,23 @@ const AdminTimeslotView = () => {
     
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
+      console.log('Fetching timeslots for date:', formattedDate);
       const response = await axios.get(`/api/bookings/timeslots?date=${formattedDate}`);
-      setAvailableTimeslots(response.data);
+      
+      // Ensure response.data is an array
+      if (Array.isArray(response.data)) {
+        console.log('Received timeslots array with length:', response.data.length);
+        setAvailableTimeslots(response.data);
+      } else {
+        console.error('API did not return an array for timeslots:', response.data);
+        // If not an array, set to empty array to prevent map errors
+        setAvailableTimeslots([]);
+      }
     } catch (error) {
       console.error('Error fetching timeslots:', error);
       setError(t('error_fetching_timeslots', 'Failed to fetch timeslots'));
+      // Set to empty array on error
+      setAvailableTimeslots([]);
     } finally {
       setLoading(false);
     }
@@ -414,13 +426,17 @@ const AdminTimeslotView = () => {
         </Box>
       ) : error ? (
         <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>
+      ) : !Array.isArray(availableTimeslots) ? (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {t('invalid_timeslots_data', 'Invalid timeslots data received. Please refresh the page.')}
+        </Alert>
       ) : availableTimeslots.length === 0 ? (
         <Alert severity="info" sx={{ mt: 2 }}>
           {t('no_timeslots_available', 'No timeslots available for this date')}
         </Alert>
       ) : (
         <Grid container spacing={2} sx={{ mt: 2 }}>
-          {availableTimeslots.map((timeslot, index) => (
+          {Array.isArray(availableTimeslots) && availableTimeslots.map((timeslot, index) => (
             <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
               {renderTimeslotButton(timeslot)}
             </Grid>
