@@ -34,17 +34,28 @@ export const login = createAsyncThunk(
   'auth/login',
   async ({ email, password }, { rejectWithValue }) => {
     try {
+      console.log('Login attempt for email:', email);
+      console.log('Current baseURL:', axiosInstance.defaults.baseURL);
+      
       const config = {
         headers: {
           'Content-Type': 'application/json',
         },
       };
 
-      const { data } = await axiosInstance.post(
+      console.log('Sending login request to:', '/api/users/login');
+      
+      const response = await axiosInstance.post(
         '/api/users/login',
         { email, password },
         config
       );
+      
+      console.log('Login response status:', response.status);
+      console.log('Login response headers:', response.headers);
+      
+      const { data } = response;
+      console.log('Login response data received:', data ? 'yes' : 'no');
 
       // Validate the response data before storing
       if (!data || !data.token) {
@@ -58,15 +69,24 @@ export const login = createAsyncThunk(
       }
       
       // Store user info in localStorage
-      localStorage.setItem('userInfo', JSON.stringify(data));
+      try {
+        localStorage.setItem('userInfo', JSON.stringify(data));
+        console.log('User info saved to localStorage successfully');
+        
+        // Verify it was stored correctly
+        const storedData = localStorage.getItem('userInfo');
+        console.log('Verified localStorage data exists:', !!storedData);
+      } catch (storageError) {
+        console.error('Error storing user info in localStorage:', storageError);
+      }
       
-      // Force a reload of the page to ensure a fresh state
+      // Log successful login details
       console.log('User logged in successfully:', {
         id: data._id,
         name: data.name,
         isAdmin: data.isAdmin,
         tokenExists: !!data.token,
-        tokenLength: data.token.length
+        tokenLength: data.token ? data.token.length : 0
       });
       
       // Log the token for debugging
@@ -76,11 +96,20 @@ export const login = createAsyncThunk(
 
       return data;
     } catch (error) {
-      console.error('Login error:', error.response?.data || error.message);
+      console.error('Login error details:', {
+        message: error.message,
+        response: error.response ? {
+          status: error.response.status,
+          data: error.response.data,
+          headers: error.response.headers
+        } : 'No response',
+        request: error.request ? 'Request was made but no response received' : 'Request setup failed'
+      });
+      
       return rejectWithValue(
         error.response && error.response.data.message
           ? error.response.data.message
-          : error.message
+          : error.message || 'Login failed. Please check your connection and try again.'
       );
     }
   }
