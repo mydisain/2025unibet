@@ -588,6 +588,27 @@ const AdminTimeslotView = () => {
                   </FormControl>
                 </Grid>
                 <Grid item xs={12} sm={6}>
+                  <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={et}>
+                    <DatePicker
+                      label={t('booking_date')}
+                      defaultValue={selectedBooking.date ? new Date(selectedBooking.date) : selectedDate}
+                      onChange={(newDate) => {
+                        // Store the selected date in a hidden input field
+                        const dateInput = document.getElementsByName('bookingDate')[0];
+                        if (dateInput) {
+                          dateInput.value = format(newDate, 'yyyy-MM-dd');
+                        }
+                      }}
+                      renderInput={(params) => <TextField {...params} fullWidth />}
+                    />
+                    <input 
+                      type="hidden" 
+                      name="bookingDate" 
+                      defaultValue={selectedBooking.date ? format(new Date(selectedBooking.date), 'yyyy-MM-dd') : format(selectedDate, 'yyyy-MM-dd')} 
+                    />
+                  </LocalizationProvider>
+                </Grid>
+                <Grid item xs={12} sm={6}>
                   <TextField
                     fullWidth
                     label={t('email')}
@@ -626,6 +647,7 @@ const AdminTimeslotView = () => {
               customerPhone: document.getElementsByName('customerPhone')[0].value,
               status: document.getElementsByName('status')[0].value,
               notes: document.getElementsByName('notes')[0].value,
+              date: document.getElementsByName('bookingDate')[0].value,
             })}
             variant="contained"
           >
