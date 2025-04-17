@@ -42,11 +42,16 @@ const createBooking = asyncHandler(async (req, res) => {
   // Store the selected timeslots if provided
   const bookingTimeslots = selectedTimeslots || [];
 
+  // Ensure date is properly converted to a Date object
+  const bookingDate = new Date(date);
+  // Reset the time to midnight to ensure consistent date handling
+  bookingDate.setUTCHours(0, 0, 0, 0);
+
   const booking = await Booking.create({
     customerName,
     customerEmail,
     customerPhone,
-    date,
+    date: bookingDate,
     startTime,
     endTime,
     duration,
@@ -254,35 +259,24 @@ const getAvailableTimeslots = asyncHandler(async (req, res) => {
   const dateString = date.split('T')[0].split('?')[0]; // Handle both ISO format and query params
   console.log('Normalized date string:', dateString);
   
-  // Query all bookings and filter by date manually to ensure we catch all formats
-  const allBookings = await Booking.find({ status: { $ne: 'cancelled' } });
-  console.log(`Total active bookings in system: ${allBookings.length}`);
+  // Query bookings directly with a date filter for the specific date
+  // Convert the date string to a Date object for proper MongoDB date comparison
+  const queryDate = new Date(dateString);
+  // Set time to midnight for the start of the day
+  queryDate.setUTCHours(0, 0, 0, 0);
+  // Create end of day date by adding 24 hours
+  const nextDay = new Date(queryDate);
+  nextDay.setUTCDate(nextDay.getUTCDate() + 1);
   
-  // Filter bookings manually by comparing date strings
-  const bookings = allBookings.filter(booking => {
-    // Convert booking date to string for comparison
-    let bookingDateStr = '';
-    
-    if (booking.date instanceof Date) {
-      // If date is stored as Date object
-      bookingDateStr = booking.date.toISOString().split('T')[0];
-    } else if (typeof booking.date === 'string') {
-      // If date is stored as string
-      bookingDateStr = booking.date.split('T')[0];
-    } else {
-      // Unknown format
-      console.log(`Booking ${booking._id} has date in unknown format:`, booking.date);
-      return false;
-    }
-    
-    const matches = bookingDateStr === dateString;
-    if (matches) {
-      console.log(`Booking ${booking._id} matches date ${dateString} (${bookingDateStr})`);
-    }
-    return matches;
+  console.log(`Querying bookings between ${queryDate.toISOString()} and ${nextDay.toISOString()}`);
+  
+  // Query bookings for the specific date range and not cancelled
+  const bookings = await Booking.find({
+    date: { $gte: queryDate, $lt: nextDay },
+    status: { $ne: 'cancelled' }
   });
   
-  console.log(`Found ${bookings.length} bookings for date ${dateString} after manual filtering`);
+  console.log(`Found ${bookings.length} bookings for date ${dateString}`);
   if (bookings.length > 0) {
     console.log('First booking:', JSON.stringify({
       id: bookings[0]._id,
