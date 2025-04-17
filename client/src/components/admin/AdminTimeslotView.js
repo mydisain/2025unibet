@@ -130,13 +130,37 @@ const AdminTimeslotView = () => {
     const { startTime, endTime } = timeslot;
     const timeslotStr = `${startTime}-${endTime}`;
     
+    // Format the selected date to YYYY-MM-DD for comparison
+    const formattedSelectedDate = format(selectedDate, 'yyyy-MM-dd');
+    
     return bookings.filter(booking => {
-      // Check if this booking has selectedTimeslots that match this timeslot
+      // First, check if the booking is for the selected date
+      let bookingDateStr = '';
+      
+      if (booking.date) {
+        // Convert booking date to string for comparison
+        if (booking.date instanceof Date) {
+          bookingDateStr = format(booking.date, 'yyyy-MM-dd');
+        } else {
+          // If it's a string, extract the date part
+          bookingDateStr = new Date(booking.date).toISOString().split('T')[0];
+        }
+        
+        // If dates don't match, exclude this booking
+        if (bookingDateStr !== formattedSelectedDate) {
+          return false;
+        }
+      } else {
+        // If booking has no date, exclude it
+        return false;
+      }
+      
+      // Then check if this booking has selectedTimeslots that match this timeslot
       if (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) {
         return booking.selectedTimeslots.some(ts => {
           // Normalize both timeslots for comparison
-          const normalizedBookingTimeslot = ts.replace(/\\s+/g, '');
-          const normalizedCurrentTimeslot = timeslotStr.replace(/\\s+/g, '');
+          const normalizedBookingTimeslot = ts.replace(/\s+/g, '');
+          const normalizedCurrentTimeslot = timeslotStr.replace(/\s+/g, '');
           
           return normalizedBookingTimeslot === normalizedCurrentTimeslot;
         });
