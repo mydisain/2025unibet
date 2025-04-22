@@ -66,9 +66,14 @@ const AdminTimeslotView = () => {
     notes: ''
   });
   
-  // State for kart selection
+  // Multi-timeslot booking session state
+  const [selectedTimeslotSessions, setSelectedTimeslotSessions] = useState([]); // [{ timeslot, selectedKarts, kartQuantities }]
+
+  // State for kart selection for the current timeslot
   const [selectedKarts, setSelectedKarts] = useState([]);
   const [kartQuantities, setKartQuantities] = useState({});
+  const [currentTimeslot, setCurrentTimeslot] = useState(null); // For dialog
+
   
   // Get data from Redux store
   const { bookings = [], loading: bookingsLoading } = useSelector((state) => state.bookings);
@@ -254,8 +259,32 @@ const AdminTimeslotView = () => {
     // Reset kart selection
     setSelectedKarts([]);
     setKartQuantities({});
+    setCurrentTimeslot(selectedTimeslot);
     setOpenKartSelectionDialog(true);
   };
+
+  // Add another timeslot to the session
+  const handleAddTimeslot = () => {
+    // Save current timeslot/kart selection to session
+    if (currentTimeslot && selectedKarts.length > 0) {
+      setSelectedTimeslotSessions(prev => [
+        ...prev,
+        {
+          timeslot: currentTimeslot,
+          selectedKarts: [...selectedKarts],
+          kartQuantities: { ...kartQuantities },
+        },
+      ]);
+    }
+    // Reset selection state for next timeslot
+    setSelectedKarts([]);
+    setKartQuantities({});
+    setCurrentTimeslot(null);
+    setOpenKartSelectionDialog(false);
+    // Optionally, prompt to pick a new timeslot (could open timeslot picker or instruct admin)
+    // For now, dialog closes, admin can click a new timeslot and "add booking" again
+  };
+
   
   // Handle kart selection
   const handleKartSelect = (kartId, isSelected) => {
@@ -287,9 +316,21 @@ const AdminTimeslotView = () => {
   
   // Confirm kart selection
   const handleConfirmKartSelection = () => {
+    // Save current selection to session
+    if (currentTimeslot && selectedKarts.length > 0) {
+      setSelectedTimeslotSessions(prev => [
+        ...prev,
+        {
+          timeslot: currentTimeslot,
+          selectedKarts: [...selectedKarts],
+          kartQuantities: { ...kartQuantities },
+        },
+      ]);
+    }
     setOpenKartSelectionDialog(false);
     setOpenNewBookingDialog(true);
   };
+
   
   // Close new booking dialog
   const handleCloseNewBookingDialog = () => {
@@ -311,52 +352,55 @@ const AdminTimeslotView = () => {
     });
   };
   
-  // Create new booking
+  // Create new booking (multi-timeslot)
   const handleCreateBooking = () => {
-    if (!selectedTimeslot) return;
-    
-    // Prepare kart selections
-    const kartSelections = selectedKarts.map(kartId => {
-      const kart = karts.find(k => k._id === kartId);
-      return {
-        kart: kartId,
-        quantity: kartQuantities[kartId] || 1,
-        pricePerSlot: kart?.pricePerSlot || 0
-      };
+    if (selectedTimeslotSessions.length === 0) return;
+
+    // Prepare all timeslots and kart selections
+    const allTimeslots = selectedTimeslotSessions.map(session => {
+      const { startTime, endTime } = session.timeslot;
+      return `${startTime}-${endTime}`;
     });
-    
-    // Prepare timeslot data
-    const { startTime, endTime } = selectedTimeslot;
-    const timeslotStr = `${startTime}-${endTime}`;
-    
-    // Create booking data
+    const allKartSelections = selectedTimeslotSessions.flatMap(session =>
+      session.selectedKarts.map(kartId => {
+        const kart = karts.find(k => k._id === kartId);
+        return {
+          kart: kartId,
+          quantity: session.kartQuantities[kartId] || 1,
+          pricePerSlot: kart?.pricePerSlot || 0,
+          timeslot: session.timeslot,
+        };
+      })
+    );
+
+    // Use the first timeslot for start/end/duration for legacy fields
+    const { startTime, endTime } = selectedTimeslotSessions[0].timeslot;
     const bookingData = {
       ...newBookingData,
       date: format(selectedDate, 'yyyy-MM-dd'),
       startTime,
       endTime,
       duration: settings?.timeslotDuration || 30,
-      selectedTimeslots: [timeslotStr],
-      kartSelections,
-      status: 'confirmed'
+      selectedTimeslots: allTimeslots,
+      kartSelections: allKartSelections,
+      status: 'confirmed',
     };
-    
-    // Dispatch create booking action
+
     dispatch(createBooking(bookingData))
       .unwrap()
       .then(() => {
         handleCloseNewBookingDialog();
+        setSelectedTimeslotSessions([]);
         // Refresh timeslots
         fetchTimeslots(selectedDate);
-        // Show success message
         alert(t('booking_created_successfully', 'Booking created successfully'));
       })
       .catch((error) => {
         console.error('Create booking failed:', error);
-        // Show error message
         alert(t('create_booking_failed', 'Failed to create booking'));
       });
   };
+
   
   // Render a timeslot button
   const renderTimeslotButton = (timeslot) => {
@@ -427,8 +471,9 @@ const AdminTimeslotView = () => {
   };
   
   return (
-    <Box sx={{ mt: 2 }}>
-      <Grid container spacing={2}>
+    <Box>
+      <Box sx={{ mt: 2 }}>
+        <Grid container spacing={2}>
         <Grid item xs={12} md={4}>
           <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={et}>
             <DatePicker
@@ -446,6 +491,34 @@ const AdminTimeslotView = () => {
         </Grid>
       </Grid>
       
+      {/* Selected Timeslots Section - Displayed on Top */}
+      <Box sx={{ mt: 4, mb: 2 }}>
+        <Typography variant="h6" gutterBottom>
+          {t('selected_timeslots', 'Valitud ajavahemikud')}
+        </Typography>
+        {selectedTimeslotSessions.length > 0 ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+            {selectedTimeslotSessions.map((session, idx) => (
+              <Button
+                key={idx}
+                variant="contained"
+                color="primary"
+                sx={{ minWidth: 180 }}
+              >
+                {formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}
+              </Button>
+            ))}
+            <Typography variant="body2" sx={{ ml: 2 }}>
+              {t('duration', 'Kestvus kokku::')} {selectedTimeslotSessions.length * (settings?.timeslotDuration || 30)} {t('minutes', 'minutit')}
+            </Typography>
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {t('no_timeslot_selected', 'Ühtegi ajavahemikku pole valitud')}
+          </Typography>
+        )}
+      </Box>
+
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
           <CircularProgress />
@@ -701,55 +774,22 @@ const AdminTimeslotView = () => {
       </Dialog>
       
       {/* Kart Selection Dialog */}
-      <Dialog
+      <KartSelectionDialog
         open={openKartSelectionDialog}
         onClose={() => setOpenKartSelectionDialog(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          {t('select_karts_for_timeslot', { 
-            timeslot: selectedTimeslot ? `${selectedTimeslot.startTime} - ${selectedTimeslot.endTime}` : '' 
-          })}
-        </DialogTitle>
-        <DialogContent>
-          {kartsLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <>
-              <DialogContentText sx={{ mb: 2 }}>
-                {t('admin_kart_selection_info', 'Select karts for the new booking')}
-              </DialogContentText>
+        onConfirm={handleConfirmKartSelection}
+        onAddTimeslot={handleAddTimeslot}
+        timeslot={currentTimeslot}
+        karts={karts}
+        selectedKarts={selectedKarts}
+        kartQuantities={kartQuantities}
+        handleKartSelect={handleKartSelect}
+        handleQuantityChange={handleQuantityChange}
+        kartsLoading={kartsLoading}
+        kartsError={null}
+        isFirstTimeslot={selectedTimeslotSessions.length === 0}
+      />
 
-              <Grid container spacing={3} sx={{ mt: 2 }}>
-                {karts && karts.map((kart) => {
-                  // Get availability for this kart in the current timeslot
-                  const kartAvailability = selectedTimeslot?.kartAvailability?.find(k => k._id === kart._id);
-                  const availableQuantity = kartAvailability?.available || 0;
-
-                  return (
-                    <Grid item xs={12} key={kart._id}>
-                      <Paper
-                        sx={{
-                          p: 3,
-                          border: selectedKarts.includes(kart._id) ? '2px solid #1976d2' : '1px solid #e0e0e0',
-                          '&:hover': {
-                            boxShadow: 3,
-                          },
-                        }}
-                      >
-                        <Box
-                          onClick={() => handleKartSelect(kart._id, !selectedKarts.includes(kart._id))}
-                          sx={{ cursor: availableQuantity > 0 ? 'pointer' : 'not-allowed' }}
-                        >
-                          <Grid container alignItems="center" spacing={2}>
-                            <Grid item xs={12} md={6}>
-                              <Typography variant="h6">{kart.name}</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {kart.description}
-                              </Typography>
                             </Grid>
                             <Grid item xs={6} md={3}>
                               <Typography variant="subtitle1">
@@ -886,17 +926,26 @@ const AdminTimeslotView = () => {
                 <Typography variant="subtitle1" gutterBottom>
                   {t('selected_karts')}:
                 </Typography>
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {selectedKarts.map(kartId => {
-                    const kart = karts.find(k => k._id === kartId);
-                    return (
-                      <Chip
-                        key={kartId}
-                        label={`${kart?.name || 'Kart'} x${kartQuantities[kartId] || 1}`}
-                        color="primary"
-                      />
-                    );
-                  })}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {selectedTimeslotSessions.map((session, idx) => (
+                    <Box key={idx} sx={{ mb: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                        {t('timeslot')}: {formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
+                        {session.selectedKarts.map(kartId => {
+                          const kart = karts.find(k => k._id === kartId);
+                          return (
+                            <Chip
+                              key={kartId}
+                              label={`${kart?.name || 'Kart'} x${session.kartQuantities[kartId] || 1}`}
+                              color="primary"
+                            />
+                          );
+                        })}
+                      </Box>
+                    </Box>
+                  ))}
                 </Box>
               </Grid>
             </Grid>
@@ -913,6 +962,7 @@ const AdminTimeslotView = () => {
           </Button>
         </DialogActions>
       </Dialog>
+    </Box>
     </Box>
   );
 };
