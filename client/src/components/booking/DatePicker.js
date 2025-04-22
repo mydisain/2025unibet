@@ -241,13 +241,46 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
       </Button>
     );
   };
-  
+   // --- Selected Timeslots Section (TOP) ---
+  const totalDuration = selectedTimeslots.reduce((sum, slot) => sum + (slot.duration || (settings?.timeslotDuration || 15)), 0);
+
   return (
     <Box>
+      {/* Selected Timeslots Display */}
+      <Box sx={{ mt: 2, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          {t('selected_timeslots', 'Valitud ajavahemikud')}
+        </Typography>
+        {selectedTimeslots.length > 0 ? (
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, alignItems: 'center' }}>
+            {selectedTimeslots.map((slot, idx) => (
+              <Button
+                key={slot.startTime + '-' + slot.endTime}
+                variant="contained"
+                color="primary"
+                sx={{ minWidth: 140 }}
+                disabled
+              >
+                {formatTimeslot(slot.startTime, slot.endTime)}
+              </Button>
+            ))}
+            <Typography variant="body2" sx={{ ml: 2 }}>
+              {t('duration', 'Kestvus kokku::')} {totalDuration} {t('minutes', 'minutit')}
+            </Typography>
+            <Typography variant="body2" sx={{ ml: 2 }}>
+              {t('max_duration', 'Maksimaalne kestus::')} {settings?.maxBookingDuration || 120} {t('minutes', 'minutit')}
+            </Typography>
+          </Box>
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            {t('no_timeslot_selected', 'Ühtegi ajavahemikku pole valitud')}
+          </Typography>
+        )}
+      </Box>
+
       <Typography variant="h6" gutterBottom>
         {t('select_time')}
       </Typography>
-      
       <Card sx={{ mb: 4, p: 2 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
@@ -265,7 +298,6 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
           </LocalizationProvider>
         </CardContent>
       </Card>
-      
       {timeslotsLoading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
           <CircularProgress />
@@ -291,6 +323,22 @@ const DatePicker = ({ onTimeslotSelect, selectedTimeslots = [], kartQuantities =
           )}
         </Grid>
       )}
+
+      {/* Cancel Selection Button (BOTTOM LEFT) */}
+      <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 4 }}>
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={() => {
+            if (typeof onTimeslotSelect === 'function') {
+              onTimeslotSelect('clear_all');
+            }
+          }}
+          disabled={selectedTimeslots.length === 0}
+        >
+          {t('cancel_selection', 'Tühista valik')}
+        </Button>
+      </Box>
     </Box>
   );
 };
