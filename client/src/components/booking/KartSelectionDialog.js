@@ -19,6 +19,7 @@ const KartSelectionDialog = ({
   open,
   onClose,
   onConfirm,
+  onAddTimeslot,
   timeslot,
   karts,
   selectedKarts,

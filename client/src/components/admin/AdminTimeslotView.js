@@ -38,6 +38,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 
+import KartSelectionDialog from '../booking/KartSelectionDialog';
 // Import booking actions
 import { getBookings, updateBooking, deleteBooking, createBooking } from '../../redux/slices/bookingSlice';
 import { getKarts } from '../../redux/slices/kartSlice';
@@ -790,85 +791,6 @@ const AdminTimeslotView = () => {
         isFirstTimeslot={selectedTimeslotSessions.length === 0}
       />
 
-                            </Grid>
-                            <Grid item xs={6} md={3}>
-                              <Typography variant="subtitle1">
-                                {t('price')}: {kart.pricePerSlot} €
-                              </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {t('available')}: {availableQuantity}
-                              </Typography>
-                            </Grid>
-                            <Grid item xs={6} md={3}>
-                              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                <Typography variant="body2" sx={{ mr: 1 }}>{t('quantity')}:</Typography>
-                                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      // If kart is selected and quantity > 1, decrease quantity
-                                      if (selectedKarts.includes(kart._id) && kartQuantities[kart._id] > 1) {
-                                        handleQuantityChange(kart._id, kartQuantities[kart._id] - 1);
-                                      } else if (selectedKarts.includes(kart._id) && kartQuantities[kart._id] === 1) {
-                                        // If quantity is 1, deselect the kart
-                                        handleKartSelect(kart._id, false);
-                                      }
-                                    }}
-                                    disabled={!selectedKarts.includes(kart._id) || kartQuantities[kart._id] <= 0}
-                                  >
-                                    -
-                                  </Button>
-                                  <Typography sx={{ mx: 1 }}>
-                                    {selectedKarts.includes(kart._id) ? (kartQuantities[kart._id] || 1) : 0}
-                                  </Typography>
-                                  <Button
-                                    size="small"
-                                    variant="outlined"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const maxAvailable = Math.min(availableQuantity, kart.quantity || 1);
-
-                                      // If kart is not selected, select it with quantity 1
-                                      if (!selectedKarts.includes(kart._id)) {
-                                        handleKartSelect(kart._id, true);
-                                      }
-                                      // If kart is already selected, increase quantity if possible
-                                      else if (kartQuantities[kart._id] < maxAvailable) {
-                                        handleQuantityChange(kart._id, kartQuantities[kart._id] + 1);
-                                      }
-                                    }}
-                                    disabled={selectedKarts.includes(kart._id) && kartQuantities[kart._id] >= Math.min(availableQuantity, kart.quantity || 1) || availableQuantity <= 0}
-                                  >
-                                    +
-                                  </Button>
-                                </Box>
-                              </Box>
-                            </Grid>
-                          </Grid>
-                        </Box>
-                      </Paper>
-                    </Grid>
-                  );
-                })}
-              </Grid>
-            </>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenKartSelectionDialog(false)}>
-            {t('cancel')}
-          </Button>
-          <Button
-            variant="contained"
-            onClick={handleConfirmKartSelection}
-            disabled={selectedKarts.length === 0}
-          >
-            {t('next')}
-          </Button>
-        </DialogActions>
-      </Dialog>
       
       {/* New Booking Dialog */}
       <Dialog
