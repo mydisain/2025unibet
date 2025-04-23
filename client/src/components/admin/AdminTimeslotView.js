@@ -369,7 +369,7 @@ const AdminTimeslotView = () => {
           kart: kartId,
           quantity: session.kartQuantities[kartId] || 1,
           pricePerSlot: kart?.pricePerSlot || 0,
-          timeslot: session.timeslot,
+          timeslot: session.timeslot._id, // Send only the timeslot ID
         };
       })
     );
