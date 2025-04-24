@@ -37,7 +37,6 @@ import axiosInstance from '../../utils/axiosConfig';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
-import DeleteIcon from '@mui/icons-material/Delete';
 
 import KartSelectionDialog from '../booking/KartSelectionDialog';
 // Import booking actions
