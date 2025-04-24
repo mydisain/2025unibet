@@ -37,6 +37,7 @@ import axiosInstance from '../../utils/axiosConfig';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 import KartSelectionDialog from '../booking/KartSelectionDialog';
 // Import booking actions
@@ -44,6 +45,11 @@ import { getBookings, updateBooking, deleteBooking, createBooking } from '../../
 import { getKarts } from '../../redux/slices/kartSlice';
 
 const AdminTimeslotView = () => {
+  // Handler to remove a timeslot session from the summary
+  const handleRemoveTimeslotSession = (idx) => {
+    setSelectedTimeslotSessions(prev => prev.filter((_, i) => i !== idx));
+  };
+
   const { t } = useTranslation();
   const dispatch = useDispatch();
   
@@ -774,6 +780,47 @@ const AdminTimeslotView = () => {
         </DialogActions>
       </Dialog>
       
+      {/* Selected Timeslots/Karts Summary */}
+      {selectedTimeslotSessions.length > 0 && (
+        <Box sx={{ mb: 2, p: 2, background: '#f5f5f5', borderRadius: 2 }}>
+          <Typography variant="h6" gutterBottom>
+            {t('Valitud ajavahemikud', 'Selected Timeslots')}
+          </Typography>
+          <List dense>
+            {selectedTimeslotSessions.map((session, idx) => (
+              <ListItem key={idx} sx={{ display: 'flex', alignItems: 'center' }}>
+                <ListItemText
+                  primary={`${formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}`}
+                  secondary={
+                    session.selectedKarts.map(kartId => {
+                      const kart = karts.find(k => k._id === kartId);
+                      return `${kart?.name || kartId} x ${session.kartQuantities[kartId] || 1}`;
+                    }).join(', ')
+                  }
+                />
+                <IconButton
+                  edge="end"
+                  aria-label="remove"
+                  onClick={() => handleRemoveTimeslotSession(idx)}
+                  size="small"
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </ListItem>
+            ))}
+          </List>
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleConfirmKartSelection}
+            sx={{ mt: 1 }}
+            disabled={selectedTimeslotSessions.length === 0}
+          >
+            {t('Kinnita', 'Confirm Booking')}
+          </Button>
+        </Box>
+      )}
+
       {/* Kart Selection Dialog */}
       <KartSelectionDialog
         open={openKartSelectionDialog}
