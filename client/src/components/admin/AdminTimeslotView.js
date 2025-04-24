@@ -281,7 +281,6 @@ const AdminTimeslotView = () => {
     setSelectedKarts([]);
     setKartQuantities({});
     setCurrentTimeslot(null);
-    setSelectedTimeslot(null); // Reset timeslot selection to return to timeslot view
     setOpenKartSelectionDialog(false); // Close kart selection, show timeslot view
     // Do NOT open booking dialog here; admin can pick more timeslots
   };
