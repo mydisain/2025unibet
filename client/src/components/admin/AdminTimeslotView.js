@@ -281,9 +281,8 @@ const AdminTimeslotView = () => {
     setSelectedKarts([]);
     setKartQuantities({});
     setCurrentTimeslot(null);
-    setOpenKartSelectionDialog(false);
-    // Optionally, prompt to pick a new timeslot (could open timeslot picker or instruct admin)
-    // For now, dialog closes, admin can click a new timeslot and "add booking" again
+    setOpenKartSelectionDialog(false); // Close kart selection, show timeslot view
+    // Do NOT open booking dialog here; admin can pick more timeslots
   };
 
   
@@ -328,9 +327,10 @@ const AdminTimeslotView = () => {
         },
       ]);
     }
-    setOpenKartSelectionDialog(false);
-    setOpenNewBookingDialog(true);
+    setOpenKartSelectionDialog(false); // Close kart selection
+    setOpenNewBookingDialog(true); // Open booking dialog for confirmation (Kinnita)
   };
+
 
   
   // Close new booking dialog
