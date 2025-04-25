@@ -898,19 +898,12 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
               },
             ]);
           }
-          // Move to next timeslot or finish
-          if (currentTimeslotIndex < selectedTimeslots.length - 1) {
-            setCurrentTimeslotIndex(idx => idx + 1);
-            setCurrentTimeslot(selectedTimeslots[currentTimeslotIndex + 1]);
-            setSelectedKarts([]);
-            setKartQuantities({});
-          } else {
-            setOpenKartSelectionDialog(false);
-            setCurrentTimeslot(null);
-            setCurrentTimeslotIndex(0);
-            setSelectedKarts([]);
-            setKartQuantities({});
-          }
+          // Always just close kart selection dialog after adding
+          setOpenKartSelectionDialog(false);
+          setCurrentTimeslot(null);
+          setCurrentTimeslotIndex(0);
+          setSelectedKarts([]);
+          setKartQuantities({});
         }}
         timeslot={currentTimeslot}
         karts={karts}
