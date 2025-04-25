@@ -49,6 +49,12 @@ const AdminTimeslotView = () => {
     setSelectedTimeslotSessions(prev => prev.filter((_, i) => i !== idx));
   };
 
+  // Open booking confirmation dialog (for Kinnita)
+  const handleOpenBookingDialog = () => {
+    setOpenNewBookingDialog(true);
+  };
+
+
   const { t } = useTranslation();
   const dispatch = useDispatch();
   
@@ -319,9 +325,9 @@ const AdminTimeslotView = () => {
     });
   };
   
-  // Confirm kart selection
+  // Confirm kart selection (legacy, not used for booking dialog anymore)
   const handleConfirmKartSelection = () => {
-    // Save current selection to session
+    // Optionally keep this for legacy use, but do not open booking dialog here.
     if (currentTimeslot && selectedKarts.length > 0) {
       setSelectedTimeslotSessions(prev => [
         ...prev,
@@ -332,12 +338,11 @@ const AdminTimeslotView = () => {
         },
       ]);
     }
-    setOpenKartSelectionDialog(false); // Close kart selection
-    setOpenNewBookingDialog(true); // Open booking dialog for confirmation (Kinnita)
+    setOpenKartSelectionDialog(false); // Just close dialog
   };
 
-
   
+
   // Close new booking dialog
   const handleCloseNewBookingDialog = () => {
     setOpenNewBookingDialog(false);
@@ -811,7 +816,7 @@ const AdminTimeslotView = () => {
           <Button
             variant="contained"
             color="primary"
-            onClick={handleConfirmKartSelection}
+            onClick={handleOpenBookingDialog}
             sx={{ mt: 1 }}
             disabled={selectedTimeslotSessions.length === 0}
           >
@@ -824,7 +829,7 @@ const AdminTimeslotView = () => {
       <KartSelectionDialog
         open={openKartSelectionDialog}
         onClose={() => setOpenKartSelectionDialog(false)}
-        onConfirm={handleConfirmKartSelection}
+        onConfirm={handleOpenBookingDialog}
         onAddTimeslot={handleAddTimeslot}
         timeslot={currentTimeslot}
         karts={karts}
