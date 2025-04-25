@@ -545,7 +545,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                 setOpenKartSelectionDialog(true);
               }}
             >
-              {t('vali_kartid', 'Vali kartid')}
+              {t('vali_kartid', 'Vali kardid')}
             </Button>
           </Box>
         ) : (
@@ -813,7 +813,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       {selectedTimeslotSessions.length > 0 && (
         <Box sx={{ mb: 2, p: 2, background: '#f5f5f5', borderRadius: 2 }}>
           <Typography variant="h6" gutterBottom>
-            {t('Valitud ajavahemikud', 'Selected Timeslots')}
+            {t('selected_timeslots', 'Valitud ajavahemikud')}
           </Typography>
           <List dense>
             {selectedTimeslotSessions.map((session, idx) => (
@@ -845,7 +845,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
             sx={{ mt: 1 }}
             disabled={selectedTimeslotSessions.length === 0}
           >
-            {t('Kinnita', 'Confirm Booking')}
+            {t('confirm_booking', 'Kinnita')}
           </Button>
         </Box>
       )}
