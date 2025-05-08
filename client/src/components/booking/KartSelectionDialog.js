@@ -55,11 +55,7 @@ const KartSelectionDialog = ({
           </Alert>
         ) : (
           <>
-            <DialogContentText sx={{ mb: 2 }}>
-              {isFirstTimeslot
-                ? t('first_timeslot_selection_info')
-                : t('additional_timeslot_selection_info')}
-            </DialogContentText>
+            
 
             <Grid container spacing={3} sx={{ mt: 2 }}>
               {karts && karts.map((kart) => {
