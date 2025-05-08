@@ -568,74 +568,48 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         </Grid>
       </Grid>
       
-      {/* Selected Timeslots and Karts Section */}
+      {/* Selected Timeslots Section - Displayed above timeslots table */}
       {selectedTimeslotSessions.length > 0 && (
         <Box sx={{ mt: 4, mb: 4 }}>
           <Typography variant="h6" gutterBottom>
             {t('selected_timeslots', 'Valitud ajavahemikud')}
           </Typography>
-          <Grid container spacing={2}>
-            {selectedTimeslotSessions.map((session, idx) => (
-              <Grid item xs={12} key={idx}>
-                <Paper sx={{ p: 2, position: 'relative', borderLeft: '4px solid #1976d2' }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box sx={{ width: '100%' }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
-                        {formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                        {session.selectedKarts.map(kartId => {
-                          const kart = karts.find(k => k._id === kartId);
-                          return (
-                            <Chip
-                              key={kartId}
-                              size="small"
-                              label={`${kart?.name || 'Kart'} x${session.kartQuantities[kartId] || 1}`}
-                              color="primary"
-                            />
-                          );
-                        })}
-                      </Box>
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                        <Button 
-                          size="small" 
-                          startIcon={<EditIcon />} 
-                          onClick={() => {
-                            // Set the current timeslot and open kart selection dialog for editing
-                            setCurrentTimeslot(session.timeslot);
-                            setSelectedKarts([...session.selectedKarts]);
-                            setKartQuantities({...session.kartQuantities});
-                            setOpenKartSelectionDialog(true);
-                          }}
-                          sx={{ mr: 1 }}
-                        >
-                          {t('edit')}
-                        </Button>
-                        <Button 
-                          size="small" 
-                          color="error" 
-                          startIcon={<DeleteIcon />} 
-                          onClick={() => handleRemoveTimeslotSession(idx)}
-                        >
-                          {t('remove')}
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Box>
-                </Paper>
-              </Grid>
-            ))}
-            <Grid item xs={12}>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleOpenBookingDialog}
-                disabled={selectedTimeslotSessions.length === 0}
-              >
-                {t('confirm_booking', 'Kinnita broneering')}
-              </Button>
-            </Grid>
-          </Grid>
+          {selectedTimeslotSessions.map((session, idx) => (
+            <Paper key={idx} sx={{ p: 2, mb: 2, position: 'relative' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                    {formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                    {session.selectedKarts.map(kartId => {
+                      const kart = karts.find(k => k._id === kartId);
+                      return `${kart?.name || 'Kart'} (${session.kartQuantities[kartId] || 1})`;
+                    }).join(', ')}
+                  </Typography>
+                </Box>
+                <IconButton
+                  edge="end"
+                  aria-label="remove"
+                  onClick={() => handleRemoveTimeslotSession(idx)}
+                  size="small"
+                  color="error"
+                  sx={{ ml: 1 }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            </Paper>
+          ))}
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleOpenBookingDialog}
+            disabled={selectedTimeslotSessions.length === 0}
+            sx={{ mt: 1 }}
+          >
+            {t('confirm_booking', 'Jätka andmetega')}
+          </Button>
         </Box>
       )}
 
@@ -893,46 +867,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         </DialogActions>
       </Dialog>
       
-      {/* Selected Timeslots/Karts Summary */}
-      {selectedTimeslotSessions.length > 0 && (
-        <Box sx={{ mb: 2, p: 2, background: '#f5f5f5', borderRadius: 2 }}>
-          <Typography variant="h6" gutterBottom>
-            {t('selected_timeslots', 'Valitud ajavahemikud')}
-          </Typography>
-          <List dense>
-            {selectedTimeslotSessions.map((session, idx) => (
-              <ListItem key={idx} sx={{ display: 'flex', alignItems: 'center' }}>
-                <ListItemText
-                  primary={`${formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}`}
-                  secondary={
-                    session.selectedKarts.map(kartId => {
-                      const kart = karts.find(k => k._id === kartId);
-                      return `${kart?.name || kartId} x ${session.kartQuantities[kartId] || 1}`;
-                    }).join(', ')
-                  }
-                />
-                <IconButton
-                  edge="end"
-                  aria-label="remove"
-                  onClick={() => handleRemoveTimeslotSession(idx)}
-                  size="small"
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </ListItem>
-            ))}
-          </List>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleOpenBookingDialog}
-            sx={{ mt: 1 }}
-            disabled={selectedTimeslotSessions.length === 0}
-          >
-            {t('confirm_booking', 'Kinnita')}
-          </Button>
-        </Box>
-      )}
+      
 
       {/* Kart Selection Dialog */}
       <KartSelectionDialog
