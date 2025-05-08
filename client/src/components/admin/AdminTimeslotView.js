@@ -570,51 +570,58 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       
       {/* Selected Timeslots and Karts Section */}
       {selectedTimeslotSessions.length > 0 && (
-        <Box sx={{ mt: 4, mb: 2, p: 2, background: '#f5f5f5', borderRadius: 2 }}>
+        <Box sx={{ mt: 4, mb: 4 }}>
           <Typography variant="h6" gutterBottom>
             {t('selected_timeslots', 'Valitud ajavahemikud')}
           </Typography>
-          <List dense>
+          <Grid container spacing={2}>
             {selectedTimeslotSessions.map((session, idx) => (
-              <ListItem key={idx} sx={{ display: 'flex', alignItems: 'center' }}>
-                <ListItemText
-                  primary={`${formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}`}
-                  secondary={
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
-                      {session.selectedKarts.map(kartId => {
-                        const kart = karts.find(k => k._id === kartId);
-                        return (
-                          <Chip
-                            key={kartId}
-                            size="small"
-                            label={`${kart?.name || 'Kart'} x${session.kartQuantities[kartId] || 1}`}
-                            color="primary"
-                          />
-                        );
-                      })}
+              <Grid item xs={12} key={idx}>
+                <Paper sx={{ p: 2, position: 'relative' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <Box>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                        {formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {session.selectedKarts.map(kartId => {
+                          const kart = karts.find(k => k._id === kartId);
+                          return (
+                            <Chip
+                              key={kartId}
+                              size="small"
+                              label={`${kart?.name || 'Kart'} x${session.kartQuantities[kartId] || 1}`}
+                              color="primary"
+                              sx={{ mb: 1 }}
+                            />
+                          );
+                        })}
+                      </Box>
                     </Box>
-                  }
-                />
-                <IconButton
-                  edge="end"
-                  aria-label="remove"
-                  onClick={() => handleRemoveTimeslotSession(idx)}
-                  size="small"
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </ListItem>
+                    <IconButton
+                      edge="end"
+                      aria-label="remove"
+                      onClick={() => handleRemoveTimeslotSession(idx)}
+                      size="small"
+                      sx={{ position: 'absolute', top: 8, right: 8 }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Paper>
+              </Grid>
             ))}
-          </List>
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleOpenBookingDialog}
-            sx={{ mt: 1 }}
-            disabled={selectedTimeslotSessions.length === 0}
-          >
-            {t('confirm_booking', 'Kinnita broneering')}
-          </Button>
+            <Grid item xs={12}>
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleOpenBookingDialog}
+                disabled={selectedTimeslotSessions.length === 0}
+              >
+                {t('confirm_booking', 'Kinnita broneering')}
+              </Button>
+            </Grid>
+          </Grid>
         </Box>
       )}
 
