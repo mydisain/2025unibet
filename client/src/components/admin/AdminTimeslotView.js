@@ -477,27 +477,39 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
   
   // Create new booking (multi-timeslot)
   const handleCreateBooking = () => {
-    if (selectedTimeslotSessions.length === 0) return;
+    if (selectedTimeslots.length === 0) return;
+
+    console.log('Creating booking with timeslots:', selectedTimeslots);
+    console.log('Kart selections:', timeslotKartSelections);
+    console.log('Kart quantities:', timeslotKartQuantities);
 
     // Prepare all timeslots and kart selections
-    const allTimeslots = selectedTimeslotSessions.map(session => {
-      const { startTime, endTime } = session.timeslot;
-      return `${startTime}-${endTime}`;
+    const allTimeslots = selectedTimeslots.map(timeslot => {
+      return `${timeslot.startTime}-${timeslot.endTime}`;
     });
-    const allKartSelections = selectedTimeslotSessions.flatMap(session =>
-      session.selectedKarts.map(kartId => {
+    
+    const allKartSelections = [];
+    
+    // Process each selected timeslot
+    selectedTimeslots.forEach(timeslot => {
+      const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
+      const kartSelections = timeslotKartSelections[timeslotKey] || [];
+      const kartQtys = timeslotKartQuantities[timeslotKey] || {};
+      
+      // Add each kart selection for this timeslot
+      kartSelections.forEach(kartId => {
         const kart = karts.find(k => k._id === kartId);
-        return {
+        allKartSelections.push({
           kart: kartId,
-          quantity: session.kartQuantities[kartId] || 1,
+          quantity: kartQtys[kartId] || 1,
           pricePerSlot: kart?.pricePerSlot || 0,
-          timeslot: session.timeslot._id, // Send only the timeslot ID
-        };
-      })
-    );
+          timeslot: timeslot._id, // Send only the timeslot ID
+        });
+      });
+    });
 
     // Use the first timeslot for start/end/duration for legacy fields
-    const { startTime, endTime } = selectedTimeslotSessions[0].timeslot;
+    const { startTime, endTime } = selectedTimeslots[0];
     const bookingData = {
       ...newBookingData,
       date: format(selectedDate, 'yyyy-MM-dd'),
@@ -509,11 +521,16 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       status: 'confirmed',
     };
 
+    console.log('Sending booking data:', bookingData);
+
     dispatch(createBooking(bookingData))
       .unwrap()
       .then(() => {
         handleCloseNewBookingDialog();
-        setSelectedTimeslotSessions([]);
+        // Clear selected timeslots and kart selections
+        setSelectedTimeslots([]);
+        setTimeslotKartSelections({});
+        setTimeslotKartQuantities({});
         // Refresh timeslots
         fetchTimeslots(selectedDate);
         alert(t('booking_created_successfully', 'Booking created successfully'));
