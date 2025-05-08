@@ -651,7 +651,7 @@ const createEmailTransporter = (setting) => {
   });
 };
 
-// @desc    Get all possible timeslots for a specific date (admin only)
+// @desc    Get admin timeslots with custom time range
 // @route   GET /api/bookings/admin-timeslots
 // @access  Private/Admin
 const getAdminTimeslots = asyncHandler(async (req, res) => {
