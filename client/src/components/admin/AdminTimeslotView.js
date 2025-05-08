@@ -998,28 +998,35 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
               </Grid>
               <Grid item xs={12}>
                 <Typography variant="subtitle1" gutterBottom>
-                  {t('selected_karts')}:
+                  {t('selected_times', 'Valitud ajad')}:
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                  {selectedTimeslotSessions.map((session, idx) => (
-                    <Box key={idx} sx={{ mb: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                        {t('timeslot')}: {formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}
-                      </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 0.5 }}>
-                        {session.selectedKarts.map(kartId => {
-                          const kart = karts.find(k => k._id === kartId);
-                          return (
-                            <Chip
-                              key={kartId}
-                              label={`${kart?.name || 'Kart'} x${session.kartQuantities[kartId] || 1}`}
-                              color="primary"
-                            />
-                          );
-                        })}
+                  {selectedTimeslots.map((timeslot, idx) => {
+                    const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
+                    const kartSelections = timeslotKartSelections[timeslotKey] || [];
+                    const kartQtys = timeslotKartQuantities[timeslotKey] || {};
+                    
+                    return (
+                      <Box key={idx} sx={{ mb: 2, p: 2, border: '1px solid #eee', borderRadius: 1 }}>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                          {formatTimeslot(timeslot.startTime, timeslot.endTime)}
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mt: 1 }}>
+                          {kartSelections.map(kartId => {
+                            const kart = karts.find(k => k._id === kartId);
+                            return (
+                              <Chip
+                                key={kartId}
+                                label={`${kart?.name || 'Kart'} x${kartQtys[kartId] || 1}`}
+                                color="primary"
+                                size="small"
+                              />
+                            );
+                          })}
+                        </Box>
                       </Box>
-                    </Box>
-                  ))}
+                    );
+                  })}
                 </Box>
               </Grid>
             </Grid>
