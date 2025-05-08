@@ -220,7 +220,17 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
           }
           
           // Show a notification to the user
-          setError(t('admin_endpoint_error', 'Custom time range not available. Using regular timeslots instead.'));
+          setError(
+            <>
+              <div>{t('admin_endpoint_error', 'Custom time range not available. Using regular timeslots instead.')}</div>
+              <div style={{ fontSize: '0.8rem', marginTop: '8px' }}>
+                {t('admin_endpoint_error_detail', 'The server encountered an error processing the custom time range. This feature may not be fully deployed yet.')}
+              </div>
+            </>
+          );
+          
+          // Disable the custom time range toggle to prevent further attempts
+          setUseCustomTimeRange(false);
           
           // Fall back to the regular endpoint
           console.log('Using fallback URL:', regularUrl);
