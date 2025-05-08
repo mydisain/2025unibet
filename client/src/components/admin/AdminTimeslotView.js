@@ -577,13 +577,13 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
           <Grid container spacing={2}>
             {selectedTimeslotSessions.map((session, idx) => (
               <Grid item xs={12} key={idx}>
-                <Paper sx={{ p: 2, position: 'relative' }}>
+                <Paper sx={{ p: 2, position: 'relative', borderLeft: '4px solid #1976d2' }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <Box>
+                    <Box sx={{ width: '100%' }}>
                       <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1 }}>
                         {formatTimeslot(session.timeslot.startTime, session.timeslot.endTime)}
                       </Typography>
-                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
                         {session.selectedKarts.map(kartId => {
                           const kart = karts.find(k => k._id === kartId);
                           return (
@@ -592,21 +592,35 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                               size="small"
                               label={`${kart?.name || 'Kart'} x${session.kartQuantities[kartId] || 1}`}
                               color="primary"
-                              sx={{ mb: 1 }}
                             />
                           );
                         })}
                       </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
+                        <Button 
+                          size="small" 
+                          startIcon={<EditIcon />} 
+                          onClick={() => {
+                            // Set the current timeslot and open kart selection dialog for editing
+                            setCurrentTimeslot(session.timeslot);
+                            setSelectedKarts([...session.selectedKarts]);
+                            setKartQuantities({...session.kartQuantities});
+                            setOpenKartSelectionDialog(true);
+                          }}
+                          sx={{ mr: 1 }}
+                        >
+                          {t('edit')}
+                        </Button>
+                        <Button 
+                          size="small" 
+                          color="error" 
+                          startIcon={<DeleteIcon />} 
+                          onClick={() => handleRemoveTimeslotSession(idx)}
+                        >
+                          {t('remove')}
+                        </Button>
+                      </Box>
                     </Box>
-                    <IconButton
-                      edge="end"
-                      aria-label="remove"
-                      onClick={() => handleRemoveTimeslotSession(idx)}
-                      size="small"
-                      sx={{ position: 'absolute', top: 8, right: 8 }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
                   </Box>
                 </Paper>
               </Grid>
