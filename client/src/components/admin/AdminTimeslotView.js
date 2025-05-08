@@ -37,6 +37,7 @@ import axiosInstance from '../../utils/axiosConfig';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
 
 import KartSelectionDialog from '../booking/KartSelectionDialog';
 // Import booking actions
@@ -608,7 +609,14 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
               setDialogTimeslot(timeslot);
               setOpenBookingsDialog(true);
             }}
-            sx={{ mt: 1, minWidth: 120 }}
+            sx={{ 
+              mt: 1, 
+              minWidth: 120, 
+              fontWeight: 'bold',
+              fontSize: '0.75rem',
+              py: 0.5,
+              px: 2
+            }}
           >
             {timeslotBookings.length} {t('bookings', 'BRONEERINGUD')}
           </Button>
@@ -732,7 +740,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
             </>
           )}
           <IconButton onClick={handleCloseBookingsDialog} size="small">
-            <DeleteIcon fontSize="small" />
+            <CloseIcon fontSize="small" />
           </IconButton>
         </DialogTitle>
         <DialogContent>

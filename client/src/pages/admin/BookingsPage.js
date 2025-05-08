@@ -67,7 +67,7 @@ const BookingsPage = () => {
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedBooking, setSelectedBooking] = useState(null);
-  const [viewMode, setViewMode] = useState(0); // 0 = timeslot view, 1 = list view
+  // List view only - removed viewMode state
   
   // Get bookings from Redux store
   const { bookings = [], loading, error } = useSelector((state) => state.bookings);
@@ -77,10 +77,7 @@ const BookingsPage = () => {
     dispatch(getBookings());
   }, [dispatch]);
   
-  // Handle tab change
-  const handleTabChange = (event, newValue) => {
-    setViewMode(newValue);
-  };
+  // Removed tab change handler - list view only
   
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -175,12 +172,7 @@ const BookingsPage = () => {
         {t('bookings')}
       </Typography>
       
-      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
-        <Tabs value={viewMode} onChange={handleTabChange} aria-label="booking view tabs">
-          <Tab icon={<CalendarMonthIcon />} label={t('timeslot_view', 'Timeslot View')} />
-          <Tab icon={<ListAltIcon />} label={t('list_view', 'List View')} />
-        </Tabs>
-      </Box>
+      {/* Removed tabs - showing only list view */}
       
       {loading && (
         <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
@@ -196,15 +188,6 @@ const BookingsPage = () => {
       
       {!loading && !error && (
         <>
-          {/* Timeslot View */}
-          {viewMode === 0 && (
-            <Paper sx={{ p: 2, mb: 3 }}>
-              <AdminTimeslotView />
-            </Paper>
-          )}
-          
-          {/* List View */}
-          {viewMode === 1 && (
             <Paper sx={{ width: '100%', mb: 2 }}>
               <TableContainer>
                 <Table>
@@ -280,7 +263,6 @@ const BookingsPage = () => {
                 onRowsPerPageChange={handleChangeRowsPerPage}
               />
             </Paper>
-          )}
         </>
       )}
       

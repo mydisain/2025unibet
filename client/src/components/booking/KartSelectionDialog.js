@@ -41,19 +41,9 @@ const KartSelectionDialog = ({
       maxWidth="md"
       fullWidth
     >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', px: 3, pt: 2 }}>
-        <DialogTitle sx={{ p: 0 }}>
-          {t('select_karts_for_timeslot', { timeslot: `${timeslot.startTime} - ${timeslot.endTime}` })}
-        </DialogTitle>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={typeof onAddTimeslot === 'function' ? onAddTimeslot : undefined}
-          sx={{ minWidth: 120, ml: 2 }}
-        >
-          {t('add_timeslot', 'Lisa aegu')}
-        </Button>
-      </Box>
+      <DialogTitle>
+        {t('select_karts_for_timeslot', { timeslot: `${timeslot.startTime} - ${timeslot.endTime}` })}
+      </DialogTitle>
       <DialogContent>
         {kartsLoading ? (
           <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
