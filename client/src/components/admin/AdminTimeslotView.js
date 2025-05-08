@@ -599,12 +599,19 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
           {t('booked_karts')}: {bookedKarts} / {maxKartsPerTimeslot}
         </Box>
         {timeslotBookings.length > 0 && (
-          <Chip 
+          <Button 
             size="small" 
-            label={`${timeslotBookings.length} ${t('bookings')}`} 
+            variant="contained"
             color="primary" 
-            sx={{ mt: 1 }}
-          />
+            onClick={(e) => {
+              e.stopPropagation(); // Prevent the main button click
+              setDialogTimeslot(timeslot);
+              setOpenBookingsDialog(true);
+            }}
+            sx={{ mt: 1, minWidth: 120 }}
+          >
+            {timeslotBookings.length} {t('bookings', 'BRONEERINGUD')}
+          </Button>
         )}
       </Button>
     );
@@ -713,22 +720,28 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         maxWidth="md"
         fullWidth
       >
-        <DialogTitle>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           {dialogTimeslot && (
             <>
-              {t('bookings_for_timeslot', 'Bookings for timeslot')}: {' '}
-              {formatTimeslot(dialogTimeslot.startTime, dialogTimeslot.endTime)}
+              <Typography variant="h6">
+                {formatTimeslot(dialogTimeslot.startTime, dialogTimeslot.endTime)}
+                <Typography variant="subtitle2" component="span" sx={{ ml: 2, color: 'text.secondary' }}>
+                  {formatDate(selectedDate)}
+                </Typography>
+              </Typography>
             </>
           )}
+          <IconButton onClick={handleCloseBookingsDialog} size="small">
+            <DeleteIcon fontSize="small" />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
           {dialogTimeslot && (
             <Box>
-              <Typography variant="subtitle1" gutterBottom>
-                {formatDate(selectedDate)}
-              </Typography>
-              
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6">
+                  {t('bookings_list', 'Broneeringud')}
+                </Typography>
                 <Button
                   variant="contained"
                   color="primary"
@@ -744,73 +757,88 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                     }, 0) >= getMaxKartsPerTimeslot()
                   }
                 >
-                  {t('add_booking')}
+                  {t('add_booking', 'Lisa broneering')}
                 </Button>
               </Box>
               
               {getBookingsForTimeslot(dialogTimeslot).length === 0 ? (
                 <Alert severity="info" sx={{ mt: 2 }}>
-                  {t('no_bookings_for_timeslot', 'No bookings for this timeslot')}
+                  {t('no_bookings_for_timeslot', 'Sellel ajal pole broneeringuid')}
                 </Alert>
               ) : (
-                <List>
+                <Grid container spacing={2}>
                   {getBookingsForTimeslot(dialogTimeslot).map((booking, index) => (
-                    <React.Fragment key={booking._id}>
-                      <ListItem>
-                        <ListItemText
-                          primary={
-                            <Typography variant="subtitle1">
-                              {booking.customerName} ({booking.customerPhone})
+                    <Grid item xs={12} key={booking._id}>
+                      <Paper 
+                        elevation={1} 
+                        sx={{ 
+                          p: 2, 
+                          borderLeft: '4px solid #1976d2',
+                          position: 'relative'
+                        }}
+                      >
+                        <Grid container spacing={2}>
+                          <Grid item xs={12} md={4}>
+                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                              {booking.customerName}
                             </Typography>
-                          }
-                          secondary={
-                            <>
-                              <Typography variant="body2" component="span">
-                                {booking.customerEmail}
-                              </Typography>
-                              <Box sx={{ mt: 1 }}>
-                                <Typography variant="body2" component="span">
-                                  {t('karts')}: {' '}
-                                  {booking.kartSelections.map((selection, i) => (
-                                    <Chip 
-                                      key={i}
-                                      size="small" 
-                                      label={`${selection.kart?.name || 'Kart'} x${selection.quantity}`} 
-                                      sx={{ mr: 0.5, mb: 0.5 }}
-                                    />
-                                  ))}
+                            <Typography variant="body2" color="text.secondary">
+                              {booking.customerPhone}
+                            </Typography>
+                            <Typography variant="body2" color="text.secondary">
+                              {booking.customerEmail}
+                            </Typography>
+                          </Grid>
+                          <Grid item xs={12} md={6}>
+                            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                              {t('selected_karts', 'Valitud kardid')}:
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                              {booking.kartSelections.map((selection, i) => (
+                                <Chip 
+                                  key={i}
+                                  size="small" 
+                                  label={`${selection.kart?.name || 'Kart'} x${selection.quantity}`} 
+                                  color="primary"
+                                  variant="outlined"
+                                />
+                              ))}
+                            </Box>
+                            {booking.notes && (
+                              <Box sx={{ mt: 2 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  <strong>{t('notes', 'Märkused')}:</strong> {booking.notes}
                                 </Typography>
                               </Box>
-                              {booking.notes && (
-                                <Box sx={{ mt: 1 }}>
-                                  <Typography variant="body2">
-                                    {t('notes')}: {booking.notes}
-                                  </Typography>
-                                </Box>
-                              )}
-                            </>
-                          }
-                        />
-                        <ListItemSecondaryAction>
-                          <IconButton edge="end" aria-label="edit" onClick={() => handleEditBooking(booking)}>
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteBookingClick(booking)}>
-                            <DeleteIcon />
-                          </IconButton>
-                        </ListItemSecondaryAction>
-                      </ListItem>
-                      {index < getBookingsForTimeslot(dialogTimeslot).length - 1 && <Divider />}
-                    </React.Fragment>
+                            )}
+                          </Grid>
+                          <Grid item xs={12} md={2} sx={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-start' }}>
+                            <Button
+                              size="small"
+                              startIcon={<EditIcon />}
+                              onClick={() => handleEditBooking(booking)}
+                              sx={{ mr: 1 }}
+                            >
+                              {t('edit', 'Muuda')}
+                            </Button>
+                            <Button
+                              size="small"
+                              color="error"
+                              startIcon={<DeleteIcon />}
+                              onClick={() => handleDeleteBookingClick(booking)}
+                            >
+                              {t('delete', 'Kustuta')}
+                            </Button>
+                          </Grid>
+                        </Grid>
+                      </Paper>
+                    </Grid>
                   ))}
-                </List>
+                </Grid>
               )}
             </Box>
           )}
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseBookingsDialog}>{t('close')}</Button>
-        </DialogActions>
       </Dialog>
       
       {/* Edit Booking Dialog */}
