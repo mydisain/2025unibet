@@ -651,6 +651,163 @@ const createEmailTransporter = (setting) => {
   });
 };
 
+// @desc    Get all possible timeslots for a specific date (admin only)
+// @route   GET /api/bookings/admin-timeslots
+// @access  Private/Admin
+const getAdminTimeslots = asyncHandler(async (req, res) => {
+  const { date, customStartTime, customEndTime } = req.query;
+  
+  if (!date) {
+    res.status(400);
+    throw new Error('Date is required');
+  }
+  
+  // Get current date and time
+  const currentDate = new Date();
+  const requestDateObj = new Date(date);
+  
+  // Set both dates to midnight to compare just the dates
+  const currentDateMidnight = new Date(currentDate);
+  currentDateMidnight.setHours(0, 0, 0, 0);
+  
+  const requestDateMidnight = new Date(requestDateObj);
+  requestDateMidnight.setHours(0, 0, 0, 0);
+  
+  // Get settings
+  const setting = await Setting.getSetting();
+  const { timeslotDuration } = setting;
+  
+  // Default start and end times for the entire day
+  let startTime = "00:00";
+  let endTime = "23:59";
+  
+  // If custom times are provided, use them instead
+  if (customStartTime && /^([01]\d|2[0-3]):([0-5]\d)$/.test(customStartTime)) {
+    startTime = customStartTime;
+  }
+  
+  if (customEndTime && /^([01]\d|2[0-3]):([0-5]\d)$/.test(customEndTime)) {
+    endTime = customEndTime;
+  }
+  
+  console.log(`Generating admin timeslots from ${startTime} to ${endTime}`);
+  
+  // Generate all possible timeslots for the day
+  const timeslots = generateTimeslots(startTime, endTime, timeslotDuration);
+  
+  // Get all karts
+  const karts = await Kart.find({ isActive: true });
+  
+  // Get max karts per timeslot from settings
+  const maxKartsPerTimeslot = setting.maxKartsPerTimeslot || 9;
+  
+  console.log('Querying bookings for date:', date);
+  
+  // Convert the date to a consistent format (YYYY-MM-DD)
+  const dateString = date.split('T')[0].split('?')[0]; // Handle both ISO format and query params
+  console.log('Normalized date string:', dateString);
+  
+  // Find bookings for the selected date
+  const bookings = await Booking.find({
+    date: { $regex: new RegExp(`^${dateString}`) },
+    status: { $ne: 'cancelled' },
+  }).populate({
+    path: 'kartSelections.kart',
+    model: 'Kart'
+  });
+  
+  console.log(`Found ${bookings.length} bookings for date ${dateString}`);
+  
+  // Get current time if the requested date is today
+  let currentTime = null;
+  if (requestDateMidnight.getTime() === currentDateMidnight.getTime()) {
+    const hours = currentDate.getHours().toString().padStart(2, '0');
+    const minutes = currentDate.getMinutes().toString().padStart(2, '0');
+    currentTime = `${hours}:${minutes}`;
+    console.log('Current time:', currentTime);
+  }
+  
+  // Process each timeslot to check availability
+  let availableTimeslots = timeslots.map(timeslot => {
+    const { startTime } = timeslot;
+    
+    // Find bookings that overlap with this timeslot
+    const overlappingBookings = bookings.filter(booking => {
+      // Format the current timeslot for comparison
+      const timeslotStr = `${startTime}-${addMinutesToTime(startTime, timeslotDuration)}`;
+      
+      // Check if this timeslot is in the booking's selectedTimeslots array
+      if (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) {
+        const isOverlapping = booking.selectedTimeslots.some(ts => {
+          const normalizedBookingTimeslot = normalizeTimeslot(ts);
+          const normalizedCurrentTimeslot = normalizeTimeslot(timeslotStr);
+          return normalizedBookingTimeslot === normalizedCurrentTimeslot;
+        });
+        
+        return isOverlapping;
+      }
+      
+      // Legacy fallback for bookings without selectedTimeslots
+      return booking.startTime === startTime;
+    });
+    
+    // Calculate how many karts are booked for this timeslot
+    const kartBookings = {};
+    
+    overlappingBookings.forEach(booking => {
+      if (booking.kartSelections && booking.kartSelections.length > 0) {
+        booking.kartSelections.forEach(selection => {
+          const kartId = selection.kart._id.toString();
+          kartBookings[kartId] = (kartBookings[kartId] || 0) + selection.quantity;
+        });
+      }
+    });
+    
+    // Calculate kart availability
+    const kartAvailability = karts.map(kart => {
+      const kartId = kart._id.toString();
+      const booked = kartBookings[kartId] || 0;
+      const available = Math.max(0, kart.quantity - booked);
+      
+      return {
+        _id: kartId,
+        name: kart.name,
+        booked,
+        available,
+        total: kart.quantity
+      };
+    });
+    
+    // Calculate total booked and available karts
+    const totalBooked = Object.values(kartBookings).reduce((sum, qty) => sum + qty, 0);
+    const rawTotalKarts = karts.reduce((sum, kart) => sum + kart.quantity, 0);
+    
+    // Ensure we don't exceed the max karts per timeslot setting
+    const totalKarts = Math.min(rawTotalKarts, maxKartsPerTimeslot);
+    
+    // Calculate availability based on the max karts setting
+    const totalAvailability = Math.max(0, maxKartsPerTimeslot - totalBooked);
+    
+    return {
+      ...timeslot,
+      kartAvailability,
+      totalBooked,
+      totalAvailable: totalAvailability,
+      totalKarts
+    };
+  });
+  
+  // Filter out past timeslots if the requested date is today
+  if (currentTime) {
+    availableTimeslots = availableTimeslots.filter(timeslot => {
+      return compareTime(timeslot.startTime, currentTime) >= 0;
+    });
+    console.log(`Filtered out past timeslots for today, ${availableTimeslots.length} timeslots remaining`);
+  }
+  
+  res.json(availableTimeslots);
+});
+
 module.exports = {
   createBooking,
   getBookings,
@@ -658,4 +815,5 @@ module.exports = {
   updateBooking,
   deleteBooking,
   getAvailableTimeslots,
+  getAdminTimeslots,
 };

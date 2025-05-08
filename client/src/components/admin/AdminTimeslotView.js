@@ -27,7 +27,9 @@ import {
   FormControl,
   InputLabel,
   Select,
-  MenuItem
+  MenuItem,
+  Switch,
+  FormControlLabel
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
@@ -38,6 +40,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
+import RefreshIcon from '@mui/icons-material/Refresh';
 
 import KartSelectionDialog from '../booking/KartSelectionDialog';
 // Import booking actions
@@ -118,6 +121,10 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
   const [kartQuantities, setKartQuantities] = useState({});
   const [currentTimeslot, setCurrentTimeslot] = useState(null); // For dialog
 
+  // Add state for custom time range
+  const [useCustomTimeRange, setUseCustomTimeRange] = useState(false);
+  const [customStartTime, setCustomStartTime] = useState("09:00");
+  const [customEndTime, setCustomEndTime] = useState("18:00");
   
   // Get data from Redux store
   const { bookings = [], loading: bookingsLoading } = useSelector((state) => state.bookings);
@@ -149,9 +156,17 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
     try {
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log('Fetching timeslots for date:', formattedDate);
+      
+      // Determine which endpoint to use based on useCustomTimeRange
+      let url = `/api/bookings/timeslots?date=${formattedDate}`;
+      
+      if (useCustomTimeRange) {
+        url = `/api/bookings/admin-timeslots?date=${formattedDate}&customStartTime=${customStartTime}&customEndTime=${customEndTime}`;
+      }
+      
       // Use axiosInstance instead of axios to ensure the request goes to the backend
-      console.log(`Fetching timeslots from ${axiosInstance.defaults.baseURL}/api/bookings/timeslots?date=${formattedDate}`);
-      const response = await axiosInstance.get(`/api/bookings/timeslots?date=${formattedDate}`);
+      console.log(`Fetching timeslots from ${axiosInstance.defaults.baseURL}${url}`);
+      const response = await axiosInstance.get(url);
       
       // Ensure response.data is an array
       if (Array.isArray(response.data)) {
@@ -643,6 +658,67 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
           <Typography variant="h6" gutterBottom>
             {formatDate(selectedDate)}
           </Typography>
+        </Grid>
+        
+        {/* Add custom time range controls */}
+        <Grid item xs={12}>
+          <Paper sx={{ p: 2, mb: 2 }}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={useCustomTimeRange}
+                  onChange={(e) => {
+                    setUseCustomTimeRange(e.target.checked);
+                    // Refresh timeslots when toggling
+                    if (selectedDate) {
+                      fetchTimeslots(selectedDate);
+                    }
+                  }}
+                />
+              }
+              label={t('use_custom_time_range', 'Use custom time range')}
+            />
+            
+            {useCustomTimeRange && (
+              <Box sx={{ mt: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      label={t('start_time', 'Start time')}
+                      type="time"
+                      value={customStartTime}
+                      onChange={(e) => setCustomStartTime(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{ step: 300 }}
+                      fullWidth
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <TextField
+                      label={t('end_time', 'End time')}
+                      type="time"
+                      value={customEndTime}
+                      onChange={(e) => setCustomEndTime(e.target.value)}
+                      InputLabelProps={{ shrink: true }}
+                      inputProps={{ step: 300 }}
+                      fullWidth
+                      sx={{ mb: 2 }}
+                    />
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Button 
+                      variant="contained" 
+                      onClick={() => fetchTimeslots(selectedDate)}
+                      startIcon={<RefreshIcon />}
+                    >
+                      {t('apply_time_range', 'Apply time range')}
+                    </Button>
+                  </Grid>
+                </Grid>
+              </Box>
+            )}
+          </Paper>
         </Grid>
       </Grid>
       

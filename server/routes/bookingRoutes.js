@@ -7,12 +7,16 @@ const {
   updateBooking,
   deleteBooking,
   getAvailableTimeslots,
+  getAdminTimeslots,
 } = require('../controllers/bookingController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
 // Public routes
 router.post('/', createBooking);
 router.get('/timeslots', getAvailableTimeslots);
+
+// Admin timeslots route
+router.get('/admin-timeslots', protect, admin, getAdminTimeslots);
 
 // Admin routes
 router.get('/', protect, admin, getBookings);
