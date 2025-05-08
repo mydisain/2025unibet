@@ -655,9 +655,8 @@ const createEmailTransporter = (setting) => {
 // @route   GET /api/bookings/admin-timeslots
 // @access  Private/Admin
 const getAdminTimeslots = asyncHandler(async (req, res) => {
-  try {
-    console.log('Admin timeslots endpoint called');
-    console.log('Request query:', req.query);
+  console.log('Admin timeslots endpoint called');
+  console.log('Request query:', req.query);
   const { date, customStartTime, customEndTime } = req.query;
   
   if (!date) {
