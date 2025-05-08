@@ -161,11 +161,67 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       let url = `/api/bookings/timeslots?date=${formattedDate}`;
       
       if (useCustomTimeRange) {
+        // Store the regular URL as a fallback
+        const regularUrl = url;
+        
+        // Try to use the admin-timeslots endpoint
         url = `/api/bookings/admin-timeslots?date=${formattedDate}&customStartTime=${customStartTime}&customEndTime=${customEndTime}`;
+        console.log('Using admin timeslots endpoint with custom time range');
+        console.log('Custom start time:', customStartTime);
+        console.log('Custom end time:', customEndTime);
+        
+        try {
+          // Use axiosInstance instead of axios to ensure the request goes to the backend
+          console.log(`Fetching timeslots from ${axiosInstance.defaults.baseURL}${url}`);
+          
+          // Log the auth token to check if it's being sent (only log that it exists, not the actual token)
+          const hasAuthToken = axiosInstance.defaults.headers.common['Authorization'] ? 'Yes' : 'No';
+          console.log('Has Authorization header:', hasAuthToken);
+          
+          const response = await axiosInstance.get(url);
+          
+          // If we get here, the admin endpoint worked
+          console.log('Admin endpoint successful');
+          
+          // Ensure response.data is an array
+          if (Array.isArray(response.data)) {
+            console.log('Received timeslots array with length:', response.data.length);
+            setAvailableTimeslots(response.data);
+          } else {
+            console.error('API did not return an array for timeslots:', response.data);
+            // If not an array, set to empty array to prevent map errors
+            setAvailableTimeslots([]);
+          }
+          
+          // Exit the function early since we've handled everything
+          setLoading(false);
+          return;
+        } catch (adminError) {
+          // If the admin endpoint fails, fall back to the regular endpoint
+          console.error('Admin endpoint failed, falling back to regular endpoint:', adminError);
+          
+          // Log more detailed error information
+          if (adminError.response) {
+            console.error('Admin error response data:', adminError.response.data);
+            console.error('Admin error response status:', adminError.response.status);
+          }
+          
+          // Show a notification to the user
+          setError(t('admin_endpoint_error', 'Custom time range not available. Using regular timeslots instead.'));
+          
+          // Fall back to the regular endpoint
+          console.log('Using fallback URL:', regularUrl);
+          url = regularUrl;
+        }
       }
       
       // Use axiosInstance instead of axios to ensure the request goes to the backend
       console.log(`Fetching timeslots from ${axiosInstance.defaults.baseURL}${url}`);
+      
+      // Log the auth token to check if it's being sent (only log that it exists, not the actual token)
+      const hasAuthToken = axiosInstance.defaults.headers.common['Authorization'] ? 'Yes' : 'No';
+      console.log('Has Authorization header:', hasAuthToken);
+      
       const response = await axiosInstance.get(url);
       
       // Ensure response.data is an array
@@ -179,7 +235,31 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       }
     } catch (error) {
       console.error('Error fetching timeslots:', error);
-      setError(t('error_fetching_timeslots', 'Failed to fetch timeslots'));
+      
+      // Log more detailed error information
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        // that falls out of the range of 2xx
+        console.error('Error response data:', error.response.data);
+        console.error('Error response status:', error.response.status);
+        console.error('Error response headers:', error.response.headers);
+        
+        // If it's a 401 or 403 error, it's likely an authentication issue
+        if (error.response.status === 401 || error.response.status === 403) {
+          setError(t('authentication_error', 'Authentication error. Please log in again as an admin user.'));
+        } else {
+          setError(t('error_fetching_timeslots', 'Failed to fetch timeslots: ' + (error.response.data?.message || error.message)));
+        }
+      } else if (error.request) {
+        // The request was made but no response was received
+        console.error('Error request:', error.request);
+        setError(t('no_response_error', 'No response received from server'));
+      } else {
+        // Something happened in setting up the request that triggered an Error
+        console.error('Error message:', error.message);
+        setError(t('error_fetching_timeslots', 'Failed to fetch timeslots: ' + error.message));
+      }
+      
       // Set to empty array on error
       setAvailableTimeslots([]);
     } finally {
