@@ -142,6 +142,7 @@ const resources = {
       timeslots_and_karts: 'Sõitude ajad ja kardid',
       return_home: 'Tagasi avalehele',
       print_confirmation: 'Prindi kinnitus',
+      edit_booking: "Muuda broneeringut",
       
       // Kart related
       kart_name: 'Kardi nimi',
