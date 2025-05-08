@@ -383,6 +383,11 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         session => session.timeslot._id === currentTimeslot._id
       );
       
+      console.log('Current timeslot:', currentTimeslot);
+      console.log('Selected karts:', selectedKarts);
+      console.log('Existing sessions:', selectedTimeslotSessions);
+      console.log('Existing index:', existingIndex);
+      
       if (existingIndex >= 0) {
         // Update existing session
         const updatedSessions = [...selectedTimeslotSessions];
@@ -391,17 +396,20 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
           selectedKarts: [...selectedKarts],
           kartQuantities: { ...kartQuantities },
         };
+        console.log('Updating existing session, new sessions:', updatedSessions);
         setSelectedTimeslotSessions(updatedSessions);
       } else {
         // Add new session
-        setSelectedTimeslotSessions(prev => [
-          ...prev,
+        const newSessions = [
+          ...selectedTimeslotSessions,
           {
             timeslot: currentTimeslot,
             selectedKarts: [...selectedKarts],
             kartQuantities: { ...kartQuantities },
           },
-        ]);
+        ];
+        console.log('Adding new session, new sessions:', newSessions);
+        setSelectedTimeslotSessions(newSessions);
       }
     }
     setOpenKartSelectionDialog(false); // Close dialog
@@ -574,6 +582,10 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
           <Typography variant="h6" gutterBottom>
             {t('selected_timeslots', 'Valitud ajavahemikud')}
           </Typography>
+          {/* Debug info */}
+          <Box sx={{ display: 'none' }}>
+            <pre>{JSON.stringify(selectedTimeslotSessions, null, 2)}</pre>
+          </Box>
           {selectedTimeslotSessions.map((session, idx) => (
             <Paper key={idx} sx={{ p: 2, mb: 2, position: 'relative' }}>
               <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
