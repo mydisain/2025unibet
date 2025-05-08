@@ -121,10 +121,10 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
   const [kartQuantities, setKartQuantities] = useState({});
   const [currentTimeslot, setCurrentTimeslot] = useState(null); // For dialog
 
-  // Add state for custom time range
-  const [useCustomTimeRange, setUseCustomTimeRange] = useState(false);
-  const [customStartTime, setCustomStartTime] = useState("09:00");
-  const [customEndTime, setCustomEndTime] = useState("18:00");
+  // Temporarily commented out custom time range feature
+  // const [useCustomTimeRange, setUseCustomTimeRange] = useState(false);
+  // const [customStartTime, setCustomStartTime] = useState('09:00');
+  // const [customEndTime, setCustomEndTime] = useState('18:00');
   
   // Get data from Redux store
   const { bookings = [], loading: bookingsLoading } = useSelector((state) => state.bookings);
@@ -173,6 +173,8 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       // Determine which endpoint to use based on useCustomTimeRange
       let url = `/api/bookings/timeslots?date=${formattedDate}`;
       
+      // Temporarily commented out custom time range feature
+      /*
       if (useCustomTimeRange) {
         // Store the regular URL as a fallback
         const regularUrl = url;
@@ -237,6 +239,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
           url = regularUrl;
         }
       }
+      */
       
       // Use axiosInstance instead of axios to ensure the request goes to the backend
       console.log(`Fetching timeslots from ${axiosInstance.defaults.baseURL}${url}`);
@@ -766,6 +769,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         {/* Add custom time range controls */}
         <Grid item xs={12}>
           <Paper sx={{ p: 2, mb: 2 }}>
+            {/* Temporarily commented out custom time range feature
             <FormControlLabel
               control={
                 <Switch
@@ -821,6 +825,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                 </Grid>
               </Box>
             )}
+            */}
           </Paper>
         </Grid>
       </Grid>
