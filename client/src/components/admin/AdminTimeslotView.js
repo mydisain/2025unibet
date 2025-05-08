@@ -157,6 +157,19 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       const formattedDate = format(date, 'yyyy-MM-dd');
       console.log('Fetching timeslots for date:', formattedDate);
       
+      // Get the user token from localStorage
+      const userInfoString = localStorage.getItem('userInfo');
+      const userInfo = userInfoString ? JSON.parse(userInfoString) : null;
+      const token = userInfo?.token;
+      
+      // Set the Authorization header if token exists
+      if (token) {
+        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        console.log('Added Authorization header with token');
+      } else {
+        console.warn('No token found in localStorage');
+      }
+      
       // Determine which endpoint to use based on useCustomTimeRange
       let url = `/api/bookings/timeslots?date=${formattedDate}`;
       
