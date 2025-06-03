@@ -898,7 +898,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       ) : (
         <Grid container spacing={2} sx={{ mt: 2 }}>
           {Array.isArray(availableTimeslots) && availableTimeslots.map((timeslot, index) => (
-            <Grid item xs={6} sm={4} md={3} lg={2} key={index}>
+            <Grid item xs={6} sm={4} md={3} key={index}>
               {renderTimeslotButton(timeslot)}
             </Grid>
           ))}
