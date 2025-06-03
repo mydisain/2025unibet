@@ -1097,7 +1097,8 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                                       ))}
                                     </Box>
                                   </Box>
-                                ))}
+                                );
+                              })}
                               </Box>
                             ) : (
                               // Fallback for bookings without selectedTimeslots
