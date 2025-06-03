@@ -701,7 +701,18 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
     // Get bookings for this timeslot
     const timeslotBookings = getBookingsForTimeslot(timeslot);
     const bookedKarts = timeslotBookings.reduce((total, booking) => {
-      if (booking.kartSelections && booking.kartSelections.length > 0) {
+      const timeslotString = `${timeslot.startTime}-${timeslot.endTime}`;
+
+      if (booking.timeslotKartQuantities && typeof booking.timeslotKartQuantities === 'object' && booking.timeslotKartQuantities[timeslotString] !== undefined) {
+        return total + booking.timeslotKartQuantities[timeslotString];
+      } else if (
+        booking.kartSelections && 
+        booking.kartSelections.length > 0 && 
+        booking.selectedTimeslots && 
+        booking.selectedTimeslots.length === 1 && 
+        booking.selectedTimeslots[0] === timeslotString
+      ) {
+        // Fallback for single-timeslot bookings if timeslotKartQuantities is not populated for it
         return total + booking.kartSelections.reduce((sum, selection) => sum + selection.quantity, 0);
       }
       return total;
