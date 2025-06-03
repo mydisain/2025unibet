@@ -1,35 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useTranslation } from 'react-i18next';
-import {
-  Box,
-  Typography,
-  Grid,
-  Button,
-  Paper,
-  CircularProgress,
-  Alert,
-  Tooltip,
-  Badge,
-  Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Divider,
-  TextField,
+import { 
+  Box, 
+  Button, 
+  Typography, 
+  Paper, 
+  Grid, 
+  Alert, 
+  CircularProgress, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  TextField, 
+  FormControlLabel, 
+  Switch, 
   IconButton,
+  Divider,
+  Tabs,
+  Tab,
+  MenuItem,
+  Select,
   FormControl,
   InputLabel,
-  Select,
-  MenuItem,
-  Switch,
-  FormControlLabel
+  Checkbox,
+  ListItemText,
+  Chip,
+  OutlinedInput,
+  FormHelperText,
+  Card,
+  CardContent
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker } from '@mui/x-date-pickers';
@@ -705,6 +706,9 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       }
       return total;
     }, 0);
+    
+    // Get the max karts per timeslot from settings
+    const maxKartsPerTimeslot = getMaxKartsPerTimeslot();
     
     // Calculate available karts
     const availableKarts = Math.max(0, maxKartsPerTimeslot - bookedKarts);
