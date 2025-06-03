@@ -353,27 +353,27 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
     const timeslot = availableTimeslots.find(t => t.startTime === timeslotStartTime);
     if (!timeslot) return true; // If not found, consider it in the past
     
-    // For today, check if the timeslot's start time is in the past
+    // If selected date is before today, all timeslots are in the past
     const today = new Date();
     const selectedDay = new Date(selectedDate);
     
-    // If selected date is in the future, timeslot is not in the past
-    if (selectedDay.getDate() !== today.getDate() || 
-        selectedDay.getMonth() !== today.getMonth() || 
-        selectedDay.getFullYear() !== today.getFullYear()) {
+    // Compare dates without time
+    const todayDate = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const selectedDayDate = new Date(selectedDay.getFullYear(), selectedDay.getMonth(), selectedDay.getDate());
+    
+    // If selected date is before today, all timeslots are in the past
+    if (selectedDayDate < todayDate) {
+      return true;
+    }
+    
+    // If selected date is after today, no timeslots are in the past
+    if (selectedDayDate > todayDate) {
       return false;
     }
     
-    // For today, compare the timeslot's start time with current time
-    const [startHour, startMinute] = timeslot.startTime.split(':').map(Number);
-    const now = new Date();
-    
-    // Create a date object for the timeslot's start time today
-    const timeslotDate = new Date();
-    timeslotDate.setHours(startHour, startMinute, 0, 0);
-    
-    // Return true if the timeslot's start time is in the past
-    return timeslotDate < now;
+    // For today, we'll keep all timeslots visible until the end of the day
+    // Admin dashboard should show all timeslots for the current day
+    return false;
   };
   
   // Handle timeslot click
@@ -763,9 +763,16 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         fullWidth
         variant={isSelected || timeslotBookings.length > 0 ? "contained" : "outlined"}
         color={isFullyBooked ? 'error' : isHalfBooked ? 'warning' : 'primary'}
-        onClick={() => !isPast && handleTimeslotClick(timeslot)}
+        onClick={() => {
+          // Allow clicking if either:
+          // 1. It's not in the past, OR
+          // 2. It's in the past but has bookings (admins can view past bookings)
+          if (!isPast || (isPast && timeslotBookings.length > 0)) {
+            handleTimeslotClick(timeslot);
+          }
+        }}
         sx={buttonStyle}
-        disabled={isPast} // Only disable past timeslots, allow clicking on fully booked ones
+        disabled={isPast && timeslotBookings.length === 0} // Only disable past timeslots that have no bookings
       >
         <Box sx={{ 
           fontWeight: isSelected || timeslotBookings.length > 0 ? 'bold' : 'normal',
