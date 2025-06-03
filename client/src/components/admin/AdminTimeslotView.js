@@ -728,8 +728,8 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      opacity: isPast || isFullyBooked ? 0.5 : 1,
-      textDecoration: isPast || isFullyBooked ? 'line-through' : 'none',
+      opacity: isPast ? 0.5 : (isFullyBooked ? 0.8 : 1), // Keep fully booked visible but slightly dimmed
+      textDecoration: isPast ? 'line-through' : 'none', // Only past timeslots have strikethrough
       backgroundColor: timeslotBookings.length > 0 
         ? isFullyBooked 
           ? 'rgba(211, 47, 47, 0.3)' // Red for fully booked
@@ -738,11 +738,14 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
             : 'rgba(25, 118, 210, 0.2)' // Blue for some bookings
         : 'transparent',
       '&:hover': {
-        backgroundColor: isFullyBooked || isPast
-          ? 'rgba(211, 47, 47, 0.2)' // Red hover for fully booked
-          : isHalfBooked
-            ? 'rgba(255, 152, 0, 0.4)' // Orange/amber hover for half booked
-            : 'rgba(25, 118, 210, 0.3)', // Blue hover for others
+        backgroundColor: isPast
+          ? 'rgba(211, 47, 47, 0.2)' // Red hover for past
+          : isFullyBooked
+            ? 'rgba(211, 47, 47, 0.4)' // Darker red hover for fully booked
+            : isHalfBooked
+              ? 'rgba(255, 152, 0, 0.4)' // Orange/amber hover for half booked
+              : 'rgba(25, 118, 210, 0.3)', // Blue hover for others
+        cursor: 'pointer',
       },
     };
     
@@ -751,9 +754,9 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         fullWidth
         variant={timeslotBookings.length > 0 ? "contained" : "outlined"}
         color={isFullyBooked ? 'error' : isHalfBooked ? 'warning' : 'primary'}
-        onClick={() => !isFullyBooked && !isPast && handleTimeslotClick(timeslot)}
+        onClick={() => !isPast && handleTimeslotClick(timeslot)}
         sx={buttonStyle}
-        disabled={isFullyBooked || isPast}
+        disabled={isPast} // Only disable past timeslots, allow clicking on fully booked ones
       >
         <Box sx={{ 
           fontWeight: timeslotBookings.length > 0 ? 'bold' : 'normal',
