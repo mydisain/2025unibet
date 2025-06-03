@@ -696,19 +696,15 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
   // Render a timeslot button
   const renderTimeslotButton = (timeslot) => {
     const { startTime, endTime } = timeslot;
-    
+
     // Get bookings for this timeslot
     const timeslotBookings = getBookingsForTimeslot(timeslot);
     const bookedKarts = timeslotBookings.reduce((total, booking) => {
-      // Sum up all kart selections for this booking
       if (booking.kartSelections && booking.kartSelections.length > 0) {
         return total + booking.kartSelections.reduce((sum, selection) => sum + selection.quantity, 0);
       }
       return total;
     }, 0);
-    
-    // Get the max karts per timeslot from settings
-    const maxKartsPerTimeslot = getMaxKartsPerTimeslot();
     
     // Calculate available karts
     const availableKarts = Math.max(0, maxKartsPerTimeslot - bookedKarts);
@@ -722,29 +718,38 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
     // Check if this timeslot is in the past
     const isPast = isTimeslotInPast(timeslot.startTime);
     
-    // Apply styling based on booking status
+    // Check if this timeslot is selected
+    const isSelected = selectedTimeslots.some(
+      ts => ts.startTime === timeslot.startTime && ts.endTime === timeslot.endTime
+    );
+    
+    // Apply styling based on booking status and selection state
     const buttonStyle = {
       py: 2,
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      opacity: isPast ? 0.5 : (isFullyBooked ? 0.8 : 1), // Keep fully booked visible but slightly dimmed
-      textDecoration: isPast ? 'line-through' : 'none', // Only past timeslots have strikethrough
-      backgroundColor: timeslotBookings.length > 0 
-        ? isFullyBooked 
-          ? 'rgba(211, 47, 47, 0.3)' // Red for fully booked
-          : isHalfBooked 
-            ? 'rgba(255, 152, 0, 0.3)' // Orange/amber for half booked
-            : 'rgba(25, 118, 210, 0.2)' // Blue for some bookings
-        : 'transparent',
+      opacity: isPast ? 0.5 : (isFullyBooked && !isSelected ? 0.8 : 1),
+      textDecoration: isPast ? 'line-through' : 'none',
+      backgroundColor: isSelected 
+        ? 'rgba(25, 118, 210, 0.4)' // Highlight selected timeslots with blue
+        : timeslotBookings.length > 0 
+          ? isFullyBooked 
+            ? 'rgba(211, 47, 47, 0.3)' // Red for fully booked
+            : isHalfBooked 
+              ? 'rgba(255, 152, 0, 0.3)' // Orange/amber for half booked
+              : 'rgba(25, 118, 210, 0.2)' // Blue for some bookings
+          : 'transparent',
       '&:hover': {
-        backgroundColor: isPast
-          ? 'rgba(211, 47, 47, 0.2)' // Red hover for past
-          : isFullyBooked
-            ? 'rgba(211, 47, 47, 0.4)' // Darker red hover for fully booked
-            : isHalfBooked
-              ? 'rgba(255, 152, 0, 0.4)' // Orange/amber hover for half booked
-              : 'rgba(25, 118, 210, 0.3)', // Blue hover for others
+        backgroundColor: isSelected
+          ? 'rgba(25, 118, 210, 0.5)' // Darker blue hover for selected
+          : isPast
+            ? 'rgba(211, 47, 47, 0.2)' // Red hover for past
+            : isFullyBooked
+              ? 'rgba(211, 47, 47, 0.4)' // Darker red hover for fully booked
+              : isHalfBooked
+                ? 'rgba(255, 152, 0, 0.4)' // Orange/amber hover for half booked
+                : 'rgba(25, 118, 210, 0.3)', // Blue hover for others
         cursor: 'pointer',
       },
     };
@@ -752,24 +757,24 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
     return (
       <Button
         fullWidth
-        variant={timeslotBookings.length > 0 ? "contained" : "outlined"}
+        variant={isSelected || timeslotBookings.length > 0 ? "contained" : "outlined"}
         color={isFullyBooked ? 'error' : isHalfBooked ? 'warning' : 'primary'}
         onClick={() => !isPast && handleTimeslotClick(timeslot)}
         sx={buttonStyle}
         disabled={isPast} // Only disable past timeslots, allow clicking on fully booked ones
       >
         <Box sx={{ 
-          fontWeight: timeslotBookings.length > 0 ? 'bold' : 'normal',
-          fontSize: timeslotBookings.length > 0 ? '1.1rem' : '1rem'
+          fontWeight: isSelected || timeslotBookings.length > 0 ? 'bold' : 'normal',
+          fontSize: isSelected || timeslotBookings.length > 0 ? '1.1rem' : '1rem'
         }}>
           {formatTimeslot(startTime, endTime)}
         </Box>
         <Box 
           sx={{ 
-            fontSize: timeslotBookings.length > 0 ? '0.85rem' : '0.75rem', 
+            fontSize: isSelected || timeslotBookings.length > 0 ? '0.85rem' : '0.75rem', 
             mt: 1,
-            fontWeight: timeslotBookings.length > 0 ? 'medium' : 'normal',
-            color: timeslotBookings.length > 0 ? 'white' : 'rgba(0, 0, 0, 0.6)'
+            fontWeight: isSelected || timeslotBookings.length > 0 ? 'medium' : 'normal',
+            color: isSelected ? 'white' : (timeslotBookings.length > 0 ? 'white' : 'rgba(0, 0, 0, 0.6)')
           }}
         >
           {t('booked_karts')}: {bookedKarts} / {maxKartsPerTimeslot}
@@ -888,56 +893,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         </Grid>
       </Grid>
       
-      {/* Selected Timeslots Section - Displayed above timeslots table */}
-      {selectedTimeslots.length > 0 && (
-        <Box sx={{ mt: 4, mb: 4 }}>
-          <Typography variant="h6" gutterBottom>
-            {t('selected_timeslots', 'Valitud ajavahemikud')}
-          </Typography>
-          {selectedTimeslots.map((timeslot, idx) => {
-            const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
-            const kartSelections = timeslotKartSelections[timeslotKey] || [];
-            const kartQtys = timeslotKartQuantities[timeslotKey] || {};
-            
-            return (
-              <Paper key={idx} sx={{ p: 2, mb: 2, position: 'relative' }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <Box>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
-                      {formatTimeslot(timeslot.startTime, timeslot.endTime)}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      {kartSelections.map(kartId => {
-                        const kart = karts.find(k => k._id === kartId);
-                        return `${kart?.name || 'Kart'} (${kartQtys[kartId] || 1})`;
-                      }).join(', ')}
-                    </Typography>
-                  </Box>
-                  <IconButton
-                    edge="end"
-                    aria-label="remove"
-                    onClick={() => handleRemoveTimeslot(idx)}
-                    size="small"
-                    color="error"
-                    sx={{ ml: 1 }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Box>
-              </Paper>
-            );
-          })}
-          <Button
-            variant="contained"
-            color="primary"
-            onClick={handleOpenBookingDialog}
-            disabled={selectedTimeslots.length === 0}
-            sx={{ mt: 1 }}
-          >
-            {t('confirm_booking', 'Jätka andmetega')}
-          </Button>
-        </Box>
-      )}
+
 
       {loading ? (
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -961,6 +917,69 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
             </Grid>
           ))}
         </Grid>
+      )}
+      
+      {/* Selected Timeslots Section - Displayed below timeslots table */}
+      {selectedTimeslots.length > 0 && (
+        <Box sx={{ mt: 4 }}>
+          <Typography variant="h6" gutterBottom>
+            {t('selected_timeslots', 'Valitud ajavahemikud')}
+          </Typography>
+          
+          <Card sx={{ mb: 4 }}>
+            <CardContent>
+              {selectedTimeslots.map((timeslot, idx) => {
+                const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
+                const kartSelections = timeslotKartSelections[timeslotKey] || [];
+                const kartQtys = timeslotKartQuantities[timeslotKey] || {};
+                
+                return (
+                  <Paper 
+                    key={idx} 
+                    sx={{ 
+                      p: 2, 
+                      mb: 2,
+                      backgroundColor: '#f5f5f5'
+                    }}
+                  >
+                    <Grid container alignItems="center" spacing={2}>
+                      <Grid item xs={10}>
+                        <Typography variant="subtitle1">
+                          {formatTimeslot(timeslot.startTime, timeslot.endTime)}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {kartSelections.map(kartId => {
+                            const kart = karts.find(k => k._id === kartId);
+                            return `${kart?.name || 'Kart'} (${kartQtys[kartId] || 1})`;
+                          }).join(', ')}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={2} sx={{ textAlign: 'right' }}>
+                        <IconButton 
+                          color="error" 
+                          onClick={() => handleRemoveTimeslot(idx)}
+                          size="small"
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </Grid>
+                    </Grid>
+                  </Paper>
+                );
+              })}
+              <Button
+                variant="contained"
+                color="primary"
+                onClick={handleOpenBookingDialog}
+                disabled={selectedTimeslots.length === 0}
+                fullWidth
+                sx={{ mt: 2 }}
+              >
+                {t('confirm_booking', 'Jätka andmetega')}
+              </Button>
+            </CardContent>
+          </Card>
+        </Box>
       )}
       
       {/* Bookings Dialog */}
