@@ -1073,17 +1073,42 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                             <Typography variant="subtitle2" sx={{ mb: 1 }}>
                               {t('selected_karts', 'Valitud kardid')}:
                             </Typography>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                              {booking.kartSelections.map((selection, i) => (
-                                <Chip 
-                                  key={i}
-                                  size="small" 
-                                  label={`${selection.kart?.name || 'Kart'} x${selection.quantity}`} 
-                                  color="primary"
-                                  variant="outlined"
-                                />
-                              ))}
-                            </Box>
+                            {booking.selectedTimeslots && booking.selectedTimeslots.length > 0 ? (
+                              // Display each timeslot with its start time and kart selections
+                              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {booking.selectedTimeslots.map((ts, tsIndex) => (
+                                  <Box key={tsIndex} sx={{ mb: 1 }}>
+                                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                                      {ts.startTime} {/* Display the start time */}
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, ml: 1, mt: 0.5 }}>
+                                      {booking.kartSelections.map((selection, i) => (
+                                        <Chip 
+                                          key={i}
+                                          size="small" 
+                                          label={`${selection.kart?.name || 'Kart'} x${selection.quantity}`} 
+                                          color="primary"
+                                          variant="outlined"
+                                        />
+                                      ))}
+                                    </Box>
+                                  </Box>
+                                ))}
+                              </Box>
+                            ) : (
+                              // Fallback for bookings without selectedTimeslots
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                {booking.kartSelections.map((selection, i) => (
+                                  <Chip 
+                                    key={i}
+                                    size="small" 
+                                    label={`${selection.kart?.name || 'Kart'} x${selection.quantity}`} 
+                                    color="primary"
+                                    variant="outlined"
+                                  />
+                                ))}
+                              </Box>
+                            )}
                             {booking.notes && (
                               <Box sx={{ mt: 2 }}>
                                 <Typography variant="body2" color="text.secondary">
