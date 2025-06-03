@@ -1097,7 +1097,7 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                                         {formatTimeslot(startTime, endTime)}
                                       </Typography>
                                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, ml: 1, mt: 0.5 }}>
-                                      {booking.kartSelections.map((selection, i) => (
+                                      {(booking.timeslotKartSelections?.[timeslotString] || booking.kartSelections || []).map((selection, i) => (
                                         <Chip 
                                           key={i}
                                           size="small" 
