@@ -1073,18 +1073,19 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                             <Typography variant="subtitle2" sx={{ mb: 1 }}>
                               {t('selected_karts', 'Valitud kardid')}:
                             </Typography>
-                            {/* Debug the booking structure */}
-                            {console.log('Booking data:', booking)}
                             {booking.selectedTimeslots && booking.selectedTimeslots.length > 0 ? (
                               // Display each timeslot with its start time and kart selections
                               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                                {booking.selectedTimeslots.map((ts, tsIndex) => (
-                                  <Box key={tsIndex} sx={{ mb: 1 }}>
-                                    <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-                                      {/* Format the time properly */}
-                                      {formatTimeslot(ts.startTime, ts.endTime)}
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, ml: 1, mt: 0.5 }}>
+                                {booking.selectedTimeslots.map((timeslotString, tsIndex) => {
+                                  // Parse the timeslot string e.g., "14:00-14:15"
+                                  const [startTime, endTime] = timeslotString.split('-');
+                                  return (
+                                    <Box key={tsIndex} sx={{ mb: 1 }}>
+                                      <Typography variant="body2" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+                                        {/* Pass the parsed startTime and endTime to formatTimeslot */}
+                                        {formatTimeslot(startTime, endTime)}
+                                      </Typography>
+                                      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, ml: 1, mt: 0.5 }}>
                                       {booking.kartSelections.map((selection, i) => (
                                         <Chip 
                                           key={i}
