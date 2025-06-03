@@ -346,6 +346,35 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
     return settings?.maxKartsPerTimeslot || 9; // Default to 9 if not set
   };
   
+  // Check if a timeslot is in the past
+  const isTimeslotInPast = (timeslotStartTime) => {
+    // Get the timeslot object
+    const timeslot = availableTimeslots.find(t => t.startTime === timeslotStartTime);
+    if (!timeslot) return true; // If not found, consider it in the past
+    
+    // For today, check if the timeslot's start time is in the past
+    const today = new Date();
+    const selectedDay = new Date(selectedDate);
+    
+    // If selected date is in the future, timeslot is not in the past
+    if (selectedDay.getDate() !== today.getDate() || 
+        selectedDay.getMonth() !== today.getMonth() || 
+        selectedDay.getFullYear() !== today.getFullYear()) {
+      return false;
+    }
+    
+    // For today, compare the timeslot's start time with current time
+    const [startHour, startMinute] = timeslot.startTime.split(':').map(Number);
+    const now = new Date();
+    
+    // Create a date object for the timeslot's start time today
+    const timeslotDate = new Date();
+    timeslotDate.setHours(startHour, startMinute, 0, 0);
+    
+    // Return true if the timeslot's start time is in the past
+    return timeslotDate < now;
+  };
+  
   // Handle timeslot click
   const handleTimeslotClick = (timeslot, openDialog = false) => {
     if (openDialog) {
@@ -684,38 +713,60 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
     // Calculate available karts
     const availableKarts = Math.max(0, maxKartsPerTimeslot - bookedKarts);
     
-    // Apply a special style if this timeslot has bookings
+    // Check if all karts are booked
+    const isFullyBooked = availableKarts === 0;
+    
+    // Check if more than half of karts are booked
+    const isHalfBooked = bookedKarts > maxKartsPerTimeslot / 2;
+    
+    // Check if this timeslot is in the past
+    const isPast = isTimeslotInPast(timeslot.startTime);
+    
+    // Apply styling based on booking status
     const buttonStyle = {
       py: 2,
       display: 'flex',
       flexDirection: 'column',
       height: '100%',
-      backgroundColor: timeslotBookings.length > 0 ? 'rgba(25, 118, 210, 0.1)' : 'transparent',
+      opacity: isPast || isFullyBooked ? 0.5 : 1,
+      textDecoration: isPast || isFullyBooked ? 'line-through' : 'none',
+      backgroundColor: timeslotBookings.length > 0 
+        ? isFullyBooked 
+          ? 'rgba(211, 47, 47, 0.3)' // Red for fully booked
+          : isHalfBooked 
+            ? 'rgba(255, 152, 0, 0.3)' // Orange/amber for half booked
+            : 'rgba(25, 118, 210, 0.2)' // Blue for some bookings
+        : 'transparent',
       '&:hover': {
-        backgroundColor: 'rgba(25, 118, 210, 0.2)',
+        backgroundColor: isFullyBooked || isPast
+          ? 'rgba(211, 47, 47, 0.2)' // Red hover for fully booked
+          : isHalfBooked
+            ? 'rgba(255, 152, 0, 0.4)' // Orange/amber hover for half booked
+            : 'rgba(25, 118, 210, 0.3)', // Blue hover for others
       },
     };
     
     return (
       <Button
         fullWidth
-        variant="outlined"
-        color="primary"
-        onClick={() => handleTimeslotClick(timeslot)}
+        variant={timeslotBookings.length > 0 ? "contained" : "outlined"}
+        color={isFullyBooked ? 'error' : isHalfBooked ? 'warning' : 'primary'}
+        onClick={() => !isFullyBooked && !isPast && handleTimeslotClick(timeslot)}
         sx={buttonStyle}
+        disabled={isFullyBooked || isPast}
       >
         <Box sx={{ 
           fontWeight: timeslotBookings.length > 0 ? 'bold' : 'normal',
-          fontSize: '1rem'
+          fontSize: timeslotBookings.length > 0 ? '1.1rem' : '1rem'
         }}>
           {formatTimeslot(startTime, endTime)}
         </Box>
         <Box 
           sx={{ 
-            fontSize: '0.75rem', 
+            fontSize: timeslotBookings.length > 0 ? '0.85rem' : '0.75rem', 
             mt: 1,
-            fontWeight: 'normal',
-            color: 'rgba(0, 0, 0, 0.6)'
+            fontWeight: timeslotBookings.length > 0 ? 'medium' : 'normal',
+            color: timeslotBookings.length > 0 ? 'white' : 'rgba(0, 0, 0, 0.6)'
           }}
         >
           {t('booked_karts')}: {bookedKarts} / {maxKartsPerTimeslot}
@@ -723,8 +774,8 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
         {timeslotBookings.length > 0 && (
           <Button 
             size="small" 
-            variant="contained"
-            color="primary" 
+            variant="outlined"
+            color="inherit" 
             onClick={(e) => {
               e.stopPropagation(); // Prevent the main button click
               setDialogTimeslot(timeslot);
@@ -736,7 +787,11 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
               fontWeight: 'bold',
               fontSize: '0.75rem',
               py: 0.5,
-              px: 2
+              px: 2,
+              backgroundColor: 'rgba(255, 255, 255, 0.2)',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.3)'
+              }
             }}
           >
             {timeslotBookings.length} {t('bookings', 'BRONEERINGUD')}
