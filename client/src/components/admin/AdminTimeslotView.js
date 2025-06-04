@@ -450,6 +450,23 @@ const AdminTimeslotView = () => {
         }
       });
       
+      console.log('Timeslot bookings response:', response.data);
+      
+      // Check if the response data has the expected structure
+      if (response.data && Array.isArray(response.data)) {
+        response.data.forEach((booking, index) => {
+          console.log(`Booking ${index + 1}:`, booking);
+          console.log(`Booking ${index + 1} timeslots:`, booking.timeslots);
+          
+          if (booking.timeslots && booking.timeslots.length > 0) {
+            booking.timeslots.forEach((ts, tsIndex) => {
+              console.log(`Booking ${index + 1}, Timeslot ${tsIndex + 1}:`, ts);
+              console.log(`Booking ${index + 1}, Timeslot ${tsIndex + 1} karts:`, ts.karts);
+            });
+          }
+        });
+      }
+      
       setTimeslotBookings(response.data);
     } catch (error) {
       console.error('Error fetching timeslot bookings:', error);
@@ -491,8 +508,11 @@ const AdminTimeslotView = () => {
       <AdminClientDataDialog
         open={clientDialogOpen}
         onClose={handleClientDialogClose}
-        onSubmit={handleClientDataSubmit}
-        clientData={clientData}
+        onConfirm={handleClientDataSubmit}
+        selectedTimeslots={selectedTimeslots}
+        timeslotKartSelections={timeslotKartSelections}
+        timeslotKartQuantities={timeslotKartQuantities}
+        karts={karts}
         loading={bookingLoading}
       />
       
