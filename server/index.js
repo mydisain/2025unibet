@@ -15,6 +15,18 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 // Load environment variables
 dotenv.config();
 
+// Set default MongoDB URI if not provided in environment
+if (!process.env.MONGODB_URI) {
+  process.env.MONGODB_URI = 'mongodb+srv://admin:admin123@cluster0.mongodb.net/kardikeskus?retryWrites=true&w=majority';
+  console.log('Using default MongoDB URI');
+}
+
+// Set default JWT secret if not provided
+if (!process.env.JWT_SECRET) {
+  process.env.JWT_SECRET = 'unibet-kart-booking-secret-2025';
+  console.log('Using default JWT_SECRET');
+}
+
 // Try to read JWT_SECRET from the secret file if it exists
 try {
   if (fs.existsSync('/etc/secrets/JWT_SECRET')) {
@@ -37,14 +49,21 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// CORS Configuration - Temporarily allow all origins to debug the issue
+// CORS Configuration - Allow all origins for development
 app.use(cors());
 
-// Add CORS preflight handling for all routes
-app.options('*', cors());
-
-// Add explicit CORS headers to all responses
+// Add explicit CORS headers to all responses for maximum compatibility
 app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'http://localhost:3009');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
+  
+  // Handle preflight OPTIONS requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   // Log the request for debugging
   console.log(`${new Date().toISOString()} - Request from origin:`, req.headers.origin);
   console.log(`${new Date().toISOString()} - Request method:`, req.method);
