@@ -54,7 +54,7 @@ const AdminBookingsDialog = ({
           </Alert>
         ) : (
           <Box>
-            {timeslotBookings.length > 0 ? (
+            {timeslotBookings && timeslotBookings.length > 0 ? (
               timeslotBookings.map((booking, index) => (
                 <Paper key={booking._id} sx={{ p: 2, mb: 3, backgroundColor: '#f8f8f8' }}>
                   <Grid container spacing={2}>
