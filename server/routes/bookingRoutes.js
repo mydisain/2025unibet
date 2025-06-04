@@ -20,6 +20,7 @@ router.get('/admin-timeslots', protect, admin, getAdminTimeslots);
 
 // Admin routes
 router.get('/', protect, admin, getBookings);
+router.post('/admin', protect, admin, createBooking); // Admin booking creation endpoint
 router.route('/:id')
   .get(protect, admin, getBookingById)
   .put(protect, admin, updateBooking)

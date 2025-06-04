@@ -8,26 +8,117 @@ const Setting = require('../models/settingModel');
 // @route   POST /api/bookings
 // @access  Public
 const createBooking = asyncHandler(async (req, res) => {
-  const {
-    customerName,
-    customerEmail,
-    customerPhone,
-    date,
-    startTime,
-    endTime,
-    duration,
-    selectedTimeslots,
-    kartSelections,
-    timeslotKartSelections,
-    timeslotKartQuantities,
-    notes,
-  } = req.body;
+  // Check if this is an admin booking (from admin endpoint)
+  const isAdminBooking = req.originalUrl.includes('/admin');
+  
+  let bookingData = {};
+  let bookingTimeslots = [];
+  let timeslotKartSelections = {};
+  let timeslotKartQuantities = {};
+  let kartSelections = [];
+  
+  if (isAdminBooking) {
+    // Handle admin booking format
+    console.log('Creating admin booking');
+    const { date, timeslots } = req.body;
+    
+    if (!date || !timeslots || !Array.isArray(timeslots) || timeslots.length === 0) {
+      res.status(400);
+      throw new Error('Invalid admin booking data. Date and timeslots are required.');
+    }
+    
+    // Set admin booking defaults
+    bookingData = {
+      customerName: 'Admin Booking',
+      customerEmail: 'admin@bookid.ee',
+      customerPhone: '123456789',
+      date,
+      notes: 'Created by admin',
+      status: 'confirmed'
+    };
+    
+    // Process timeslots from admin format
+    bookingTimeslots = timeslots.map(ts => ({
+      startTime: ts.startTime,
+      endTime: ts.endTime
+    }));
+    
+    // Process kart selections from admin format
+    timeslots.forEach(ts => {
+      const timeslotKey = `${ts.startTime}-${ts.endTime}`;
+      
+      if (ts.karts && Array.isArray(ts.karts)) {
+        // Store kart selections for this timeslot
+        timeslotKartSelections[timeslotKey] = ts.karts.map(k => k.kartId);
+        
+        // Store kart quantities for this timeslot
+        const quantities = {};
+        ts.karts.forEach(k => {
+          quantities[k.kartId] = k.quantity;
+          
+          // Add to overall kart selections for backward compatibility
+          const existingKart = kartSelections.find(ks => ks.kartId === k.kartId);
+          if (existingKart) {
+            existingKart.quantity += k.quantity;
+          } else {
+            kartSelections.push({
+              kartId: k.kartId,
+              name: k.name,
+              quantity: k.quantity
+            });
+          }
+        });
+        
+        timeslotKartQuantities[timeslotKey] = quantities;
+      }
+    });
+    
+    console.log('Admin booking data processed:');
+    console.log('Booking timeslots:', bookingTimeslots);
+    console.log('Kart selections:', kartSelections);
+    console.log('Timeslot kart selections:', timeslotKartSelections);
+    console.log('Timeslot kart quantities:', timeslotKartQuantities);
+  } else {
+    // Handle regular public booking format
+    const {
+      customerName,
+      customerEmail,
+      customerPhone,
+      date,
+      startTime,
+      endTime,
+      duration,
+      selectedTimeslots,
+      kartSelections: reqKartSelections,
+      timeslotKartSelections: reqTimeslotKartSelections,
+      timeslotKartQuantities: reqTimeslotKartQuantities,
+      notes,
+    } = req.body;
 
-  console.log('Creating booking with the following data:');
-  console.log('Selected timeslots:', selectedTimeslots);
-  console.log('Kart selections:', kartSelections);
-  console.log('Timeslot kart selections:', timeslotKartSelections);
-  console.log('Timeslot kart quantities:', timeslotKartQuantities);
+    console.log('Creating public booking with the following data:');
+    console.log('Selected timeslots:', selectedTimeslots);
+    console.log('Kart selections:', reqKartSelections);
+    console.log('Timeslot kart selections:', reqTimeslotKartSelections);
+    console.log('Timeslot kart quantities:', reqTimeslotKartQuantities);
+    
+    bookingData = {
+      customerName,
+      customerEmail,
+      customerPhone,
+      date,
+      startTime,
+      endTime,
+      duration,
+      notes,
+      status: 'confirmed'
+    };
+    
+    // Store the selected timeslots if provided
+    bookingTimeslots = selectedTimeslots || [];
+    kartSelections = reqKartSelections || [];
+    timeslotKartSelections = reqTimeslotKartSelections || {};
+    timeslotKartQuantities = reqTimeslotKartQuantities || {};
+  }
 
   // Get settings for timeslot duration
   const setting = await Setting.getSetting();
@@ -36,37 +127,29 @@ const createBooking = asyncHandler(async (req, res) => {
   // Calculate total price based on actual timeslot duration
   let totalPrice = 0;
   for (const selection of kartSelections) {
-    totalPrice += selection.quantity * selection.pricePerSlot;
+    totalPrice += selection.quantity * (selection.pricePerSlot || 0);
   }
   
-  // Store the selected timeslots if provided
-  const bookingTimeslots = selectedTimeslots || [];
-
   // Ensure date is properly converted to a Date object
-  const bookingDate = new Date(date);
+  const bookingDate = new Date(bookingData.date);
   // Reset the time to midnight to ensure consistent date handling
   bookingDate.setUTCHours(0, 0, 0, 0);
 
   const booking = await Booking.create({
-    customerName,
-    customerEmail,
-    customerPhone,
+    ...bookingData,
     date: bookingDate,
-    startTime,
-    endTime,
-    duration,
-    selectedTimeslots: bookingTimeslots, // Store the selected timeslots
+    selectedTimeslots: bookingTimeslots,
     kartSelections,
-    timeslotKartSelections, // Store the timeslot-specific kart selections
-    timeslotKartQuantities, // Store the timeslot-specific kart quantities
-    totalPrice,
-    status: 'confirmed',
-    notes,
+    timeslotKartSelections,
+    timeslotKartQuantities,
+    totalPrice
   });
 
   if (booking) {
-    // Send confirmation email
-    await sendBookingConfirmationEmail(booking);
+    // Send confirmation email only for public bookings
+    if (!isAdminBooking) {
+      await sendBookingConfirmationEmail(booking);
+    }
     
     res.status(201).json(booking);
   } else {

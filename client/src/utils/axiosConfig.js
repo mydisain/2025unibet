@@ -2,12 +2,17 @@ import axios from 'axios';
 
 // Always use the production URL for backend requests
 // This ensures consistent behavior regardless of environment
-console.log('Configuring axios to always use production backend URL');
+console.log('Configuring axios to use production backend URL');
 
-// Create Axios instance with explicit production URL
+// Create Axios instance with production URL
 const axiosInstance = axios.create({
   baseURL: 'https://two025unibet-kardikeskus.onrender.com', // Production backend URL on Render.com
 });
+
+// For local development (uncomment when needed):
+// const axiosInstance = axios.create({
+//   baseURL: 'http://localhost:5000', // Local development server
+// });
 
 // Log the baseURL for debugging
 console.log('Axios baseURL:', axiosInstance.defaults.baseURL);
