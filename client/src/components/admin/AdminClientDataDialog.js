@@ -131,7 +131,7 @@ const AdminClientDataDialog = ({
         </Typography>
         
         <Box sx={{ mb: 2 }}>
-          {selectedTimeslots.map((timeslot, index) => (
+          {selectedTimeslots && selectedTimeslots.length > 0 ? selectedTimeslots.map((timeslot, index) => (
             <Paper 
               key={index} 
               elevation={1} 
@@ -161,7 +161,11 @@ const AdminClientDataDialog = ({
                 </Grid>
               </Grid>
             </Paper>
-          ))}
+          )) : (
+            <Typography variant="body2" color="text.secondary">
+              {t('no_timeslots_selected', 'Ühtegi ajavahemikku pole valitud')}
+            </Typography>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>
