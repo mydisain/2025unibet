@@ -1097,32 +1097,87 @@ const [dialogTimeslot, setDialogTimeslot] = useState(null); // For viewing booki
                                         {formatTimeslot(startTime, endTime)}
                                       </Typography>
                                       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, ml: 1, mt: 0.5 }}>
-                                      {(booking.timeslotKartSelections?.[timeslotString] || booking.kartSelections || []).map((selection, i) => (
-                                        <Chip 
-                                          key={i}
-                                          size="small" 
-                                          label={`${selection.kart?.name || 'Kart'} x${selection.quantity}`} 
-                                          color="primary"
-                                          variant="outlined"
-                                        />
-                                      ))}
+                                        {(() => {
+                                          console.log(`[Dialog Debug] For timeslotString: "${timeslotString}"`);
+                                          let specificSelections, fallbackSelections, finalSelections;
+                                          try {
+                                            console.log('[Dialog Debug] booking.timeslotKartSelections:', booking.timeslotKartSelections ? JSON.parse(JSON.stringify(booking.timeslotKartSelections)) : 'undefined/null');
+                                            specificSelections = booking.timeslotKartSelections?.[timeslotString];
+                                            console.log('[Dialog Debug] specificSelections (for this timeslotString):', specificSelections ? JSON.parse(JSON.stringify(specificSelections)) : 'undefined/null');
+                                            fallbackSelections = booking.kartSelections;
+                                            console.log('[Dialog Debug] fallbackSelections (booking.kartSelections):', fallbackSelections ? JSON.parse(JSON.stringify(fallbackSelections)) : 'undefined/null');
+                                            
+                                            finalSelections = (specificSelections && Array.isArray(specificSelections) && specificSelections.length > 0) 
+                                                                ? specificSelections 
+                                                                : (fallbackSelections || []);
+                                            console.log('[Dialog Debug] finalSelections to be mapped:', finalSelections ? JSON.parse(JSON.stringify(finalSelections)) : 'undefined/null');
+                                            
+                                            return finalSelections.map((selection, i) => (
+                                              <Chip 
+                                                key={i}
+                                                size="small" 
+                                                label={`${selection.kart?.name || t('Kart', 'Kart')} x${selection.quantity}`} 
+                                                color="primary"
+                                                variant="outlined"
+                                              />
+                                            ));
+                                          } catch (e) {
+                                            console.error('[Dialog Debug] Error during logging or mapping:', e);
+                                            return (booking.kartSelections || []).map((selection, i) => (
+                                              <Chip 
+                                                key={i}
+                                                size="small" 
+                                                label={`${selection.kart?.name || t('Kart', 'Kart')} x${selection.quantity} (error fallback)`} 
+                                                color="error"
+                                                variant="outlined"
+                                              />
+                                            ));
+                                          }
+                                        })()}
                                     </Box>
                                   </Box>
-                                );
-                              })}
                               </Box>
                             ) : (
                               // Fallback for bookings without selectedTimeslots
-                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                                {booking.kartSelections.map((selection, i) => (
-                                  <Chip 
-                                    key={i}
-                                    size="small" 
-                                    label={`${selection.kart?.name || 'Kart'} x${selection.quantity}`} 
-                                    color="primary"
-                                    variant="outlined"
-                                  />
-                                ))}
+                              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, ml: 1, mt: 0.5 }}>
+                                {(() => {
+                                  console.log(`[Dialog Debug] For timeslotString: "${timeslotString}"`);
+                                  let specificSelections, fallbackSelections, finalSelections;
+                                  try {
+                                    // Deep copy for logging to avoid issues with console display of proxies or complex objects
+                                    console.log('[Dialog Debug] booking.timeslotKartSelections:', booking.timeslotKartSelections ? JSON.parse(JSON.stringify(booking.timeslotKartSelections)) : undefined);
+                                    specificSelections = booking.timeslotKartSelections?.[timeslotString];
+                                    console.log('[Dialog Debug] specificSelections (from timeslotKartSelections):', specificSelections ? JSON.parse(JSON.stringify(specificSelections)) : undefined);
+                                    fallbackSelections = booking.kartSelections;
+                                    console.log('[Dialog Debug] fallbackSelections (booking.kartSelections):', fallbackSelections ? JSON.parse(JSON.stringify(fallbackSelections)) : undefined);
+                                    
+                                    // Use specificSelections if it's a non-empty array, otherwise use fallbackSelections
+                                    finalSelections = (specificSelections && Array.isArray(specificSelections) && specificSelections.length > 0) ? specificSelections : (fallbackSelections || []);
+                                    console.log('[Dialog Debug] finalSelections to be mapped:', JSON.parse(JSON.stringify(finalSelections)));
+                                    
+                                    return finalSelections.map((selection, i) => (
+                                      <Chip 
+                                        key={i}
+                                        size="small" 
+                                        label={`${selection.kart?.name || t('Kart', 'Kart')} x${selection.quantity}`} 
+                                        color="primary"
+                                        variant="outlined"
+                                      />
+                                    ));
+                                  } catch (e) {
+                                    console.error('[Dialog Debug] Error during logging or mapping:', e);
+                                    // Fallback to a simpler map if logging itself fails, to prevent UI crash
+                                    return (booking.kartSelections || []).map((selection, i) => (
+                                      <Chip 
+                                        key={i}
+                                        size="small" 
+                                        label={`${selection.kart?.name || t('Kart', 'Kart')} x${selection.quantity} (error fallback)`} 
+                                        color="error"
+                                        variant="outlined"
+                                      />
+                                    ));
+                                  }
+                                })()}
                               </Box>
                             )}
                             {booking.notes && (
