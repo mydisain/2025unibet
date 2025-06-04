@@ -13,6 +13,10 @@ import {
   CardContent,
   Divider,
   Snackbar,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker as MuiDatePicker } from '@mui/x-date-pickers';
@@ -29,6 +33,7 @@ import { getKarts } from '../../redux/slices/kartSlice';
 // Import components
 import AdminKartSelectionDialog from './AdminKartSelectionDialog';
 import AdminClientDataDialog from './AdminClientDataDialog';
+import AdminBookingsDialog from './AdminBookingsDialog';
 
 const AdminTimeslotView = () => {
   const { t } = useTranslation();
@@ -49,6 +54,13 @@ const AdminTimeslotView = () => {
   // Booking state
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  
+  // Bookings dialog state
+  const [bookingsDialogOpen, setBookingsDialogOpen] = useState(false);
+  const [selectedTimeslotBookings, setSelectedTimeslotBookings] = useState(null);
+  const [timeslotBookings, setTimeslotBookings] = useState([]);
+  const [bookingsLoading, setBookingsLoading] = useState(false);
+  const [bookingsError, setBookingsError] = useState(null);
   const [bookingError, setBookingError] = useState(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
@@ -280,6 +292,7 @@ const AdminTimeslotView = () => {
   // Handle client dialog close
   const handleClientDialogClose = () => {
     setClientDialogOpen(false);
+    setClientData(null);
   };
   
   // Handle client data submission and booking creation
@@ -397,6 +410,62 @@ const AdminTimeslotView = () => {
     });
   };
   
+  // Handle opening the bookings dialog
+  const handleBookingsButtonClick = async (event, timeslot) => {
+    event.stopPropagation(); // Prevent the timeslot button click event
+    
+    setSelectedTimeslotBookings(timeslot);
+    setBookingsDialogOpen(true);
+    setBookingsLoading(true);
+    setBookingsError(null);
+    
+    try {
+      // Get the token from userInfo in localStorage
+      const userInfoString = localStorage.getItem('userInfo');
+      if (!userInfoString) {
+        throw new Error(t('not_authenticated', 'Kasutaja pole sisse logitud'));
+      }
+      
+      let token;
+      try {
+        const userInfo = JSON.parse(userInfoString);
+        if (!userInfo || !userInfo.token) {
+          throw new Error(t('invalid_token', 'Vigane autentimistoken'));
+        }
+        token = userInfo.token;
+      } catch (error) {
+        console.error('Error parsing userInfo from localStorage:', error);
+        throw new Error(t('auth_error', 'Autentimise viga'));
+      }
+      
+      // Fetch bookings for this timeslot and date
+      const response = await axios.get('/api/bookings/timeslot', {
+        params: {
+          date: format(selectedDate, 'yyyy-MM-dd'),
+          startTime: timeslot.startTime,
+          endTime: timeslot.endTime
+        },
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      setTimeslotBookings(response.data);
+    } catch (error) {
+      console.error('Error fetching timeslot bookings:', error);
+      setBookingsError(error.message || t('bookings_fetch_error', 'Viga broneeringute laadimisel'));
+    } finally {
+      setBookingsLoading(false);
+    }
+  };
+  
+  // Handle closing the bookings dialog
+  const handleBookingsDialogClose = () => {
+    setBookingsDialogOpen(false);
+    setSelectedTimeslotBookings(null);
+    setTimeslotBookings([]);
+  };
+  
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
@@ -422,12 +491,19 @@ const AdminTimeslotView = () => {
       <AdminClientDataDialog
         open={clientDialogOpen}
         onClose={handleClientDialogClose}
-        onConfirm={handleClientDataSubmit}
-        selectedTimeslots={selectedTimeslots}
-        timeslotKartSelections={timeslotKartSelections}
-        timeslotKartQuantities={timeslotKartQuantities}
-        karts={karts}
+        onSubmit={handleClientDataSubmit}
+        clientData={clientData}
         loading={bookingLoading}
+      />
+      
+      {/* Bookings dialog */}
+      <AdminBookingsDialog
+        open={bookingsDialogOpen}
+        onClose={handleBookingsDialogClose}
+        selectedTimeslot={selectedTimeslotBookings}
+        timeslotBookings={timeslotBookings}
+        loading={bookingsLoading}
+        error={bookingsError}
       />
       
       {/* Snackbar for notifications */}
@@ -482,7 +558,7 @@ const AdminTimeslotView = () => {
                       display: 'flex',
                       flexDirection: 'column',
                       height: '100%',
-                      position: 'relative', // Added for absolute positioning of the badge
+                      justifyContent: 'space-between'
                     }}
                   >
                     <Box sx={{ 
@@ -501,25 +577,28 @@ const AdminTimeslotView = () => {
                       {t('available_places')}: {timeslot.totalAvailability || 0} / {settings?.maxKartsPerTimeslot || 9}
                     </Box>
                     
-                    {/* Show booking count badge if there are any bookings */}
-                    {timeslot.totalBooked > 0 && (
-                      <Box
-                        sx={{
-                          position: 'absolute',
-                          top: 0,
-                          right: 0,
-                          backgroundColor: 'secondary.main',
-                          color: 'white',
-                          borderRadius: '4px',
-                          padding: '2px 6px',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                          m: 1,
-                        }}
-                      >
-                        {t('bookings_count', 'Broneeringuid')}: {timeslot.totalBooked}
-                      </Box>
-                    )}
+                    {/* Show bookings button at the bottom center */}
+                    <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'center', pt: 2 }}>
+                      {timeslot.totalBooked > 0 ? (
+                        <Button
+                          variant="contained"
+                          color="success"
+                          onClick={(event) => handleBookingsButtonClick(event, timeslot)}
+                          size="small"
+                        >
+                          {t('bookings', 'Broneeringuid')}: {timeslot.totalBooked}
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outlined"
+                          color="success"
+                          disabled
+                          size="small"
+                        >
+                          {t('no_bookings', 'Broneeringuid pole')}
+                        </Button>
+                      )}
+                    </Box>
                   </Button>
                 </Grid>
               ))

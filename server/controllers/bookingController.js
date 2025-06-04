@@ -893,6 +893,68 @@ const getAdminTimeslots = asyncHandler(async (req, res) => {
   res.json(availableTimeslots);
 });
 
+// @desc    Get bookings for a specific timeslot
+// @route   GET /api/bookings/timeslot
+// @access  Private/Admin
+const getTimeslotBookings = asyncHandler(async (req, res) => {
+  const { date, startTime, endTime } = req.query;
+  
+  if (!date || !startTime || !endTime) {
+    res.status(400);
+    throw new Error('Date, startTime, and endTime are required');
+  }
+  
+  try {
+    // Find all bookings for the specified date
+    const bookingsForDate = await Booking.find({ 
+      date: new Date(date),
+      status: { $ne: 'cancelled' } // Exclude cancelled bookings
+    });
+    
+    // Filter bookings that include the specified timeslot
+    const bookingsForTimeslot = bookingsForDate.filter(booking => {
+      return booking.timeslots.some(ts => 
+        ts.startTime === startTime && ts.endTime === endTime
+      );
+    });
+    
+    // For each booking, populate the kart information for all timeslots on this date
+    const populatedBookings = await Promise.all(bookingsForTimeslot.map(async (booking) => {
+      // Create a new object with all booking fields
+      const bookingObj = booking.toObject();
+      
+      // For each timeslot in the booking, populate the kart details
+      const populatedTimeslots = await Promise.all(bookingObj.timeslots.map(async (ts) => {
+        const populatedKarts = await Promise.all(ts.karts.map(async (kartItem) => {
+          const kart = await Kart.findById(kartItem.kartId);
+          return {
+            kartId: kartItem.kartId,
+            quantity: kartItem.quantity,
+            name: kart ? kart.name : 'Unknown Kart',
+            price: kart ? kart.price : 0
+          };
+        }));
+        
+        return {
+          ...ts,
+          karts: populatedKarts
+        };
+      }));
+      
+      return {
+        ...bookingObj,
+        timeslots: populatedTimeslots
+      };
+    }));
+    
+    res.json(populatedBookings);
+  } catch (error) {
+    console.error('Error in getTimeslotBookings:', error);
+    res.status(500);
+    throw new Error('Server error when retrieving timeslot bookings');
+  }
+});
+
 module.exports = {
   createBooking,
   getBookings,
@@ -901,4 +963,5 @@ module.exports = {
   deleteBooking,
   getAvailableTimeslots,
   getAdminTimeslots,
+  getTimeslotBookings,
 };

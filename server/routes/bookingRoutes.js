@@ -8,6 +8,7 @@ const {
   deleteBooking,
   getAvailableTimeslots,
   getAdminTimeslots,
+  getTimeslotBookings,
 } = require('../controllers/bookingController');
 const { protect, admin } = require('../middleware/authMiddleware');
 
@@ -17,6 +18,9 @@ router.get('/timeslots', getAvailableTimeslots);
 
 // Admin timeslots route
 router.get('/admin-timeslots', protect, admin, getAdminTimeslots);
+
+// Timeslot bookings route
+router.get('/timeslot', protect, admin, getTimeslotBookings);
 
 // Admin routes
 router.get('/', protect, admin, getBookings);
