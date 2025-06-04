@@ -482,6 +482,7 @@ const AdminTimeslotView = () => {
                       display: 'flex',
                       flexDirection: 'column',
                       height: '100%',
+                      position: 'relative', // Added for absolute positioning of the badge
                     }}
                   >
                     <Box sx={{ 
@@ -499,6 +500,26 @@ const AdminTimeslotView = () => {
                     >
                       {t('available_places')}: {timeslot.totalAvailability || 0} / {settings?.maxKartsPerTimeslot || 9}
                     </Box>
+                    
+                    {/* Show booking count badge if there are any bookings */}
+                    {timeslot.totalBooked > 0 && (
+                      <Box
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          right: 0,
+                          backgroundColor: 'secondary.main',
+                          color: 'white',
+                          borderRadius: '4px',
+                          padding: '2px 6px',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          m: 1,
+                        }}
+                      >
+                        {t('bookings_count', 'Broneeringuid')}: {timeslot.totalBooked}
+                      </Box>
+                    )}
                   </Button>
                 </Grid>
               ))
