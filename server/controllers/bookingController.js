@@ -30,6 +30,8 @@ const createBooking = asyncHandler(async (req, res) => {
       status 
     } = req.body;
     
+    console.log('Admin booking request body:', JSON.stringify(req.body, null, 2));
+    
     if (!date || !timeslots || !Array.isArray(timeslots) || timeslots.length === 0) {
       res.status(400);
       throw new Error('Invalid admin booking data. Date and timeslots are required.');
@@ -71,8 +73,10 @@ const createBooking = asyncHandler(async (req, res) => {
           } else {
             kartSelections.push({
               kartId: k.kartId,
-              name: k.name,
-              quantity: k.quantity
+              name: k.name || 'Unknown Kart',
+              quantity: k.quantity || 1,
+              price: k.price || 0,
+              pricePerSlot: k.pricePerSlot || 0
             });
           }
         });
@@ -82,10 +86,10 @@ const createBooking = asyncHandler(async (req, res) => {
     });
     
     console.log('Admin booking data processed:');
-    console.log('Booking timeslots:', bookingTimeslots);
-    console.log('Kart selections:', kartSelections);
-    console.log('Timeslot kart selections:', timeslotKartSelections);
-    console.log('Timeslot kart quantities:', timeslotKartQuantities);
+    console.log('Booking timeslots:', JSON.stringify(bookingTimeslots, null, 2));
+    console.log('Kart selections:', JSON.stringify(kartSelections, null, 2));
+    console.log('Timeslot kart selections:', JSON.stringify(timeslotKartSelections, null, 2));
+    console.log('Timeslot kart quantities:', JSON.stringify(timeslotKartQuantities, null, 2));
   } else {
     // Handle regular public booking format
     const {
@@ -159,7 +163,31 @@ const createBooking = asyncHandler(async (req, res) => {
       await sendBookingConfirmationEmail(booking);
     }
     
-    res.status(201).json(booking);
+    // For admin bookings, log more details about the created booking
+    if (isAdminBooking) {
+      console.log('Admin booking created successfully:');
+      console.log('Booking ID:', booking._id);
+      console.log('Customer:', booking.customerName);
+      console.log('Date:', booking.date);
+      console.log('Status:', booking.status);
+      console.log('Selected Timeslots:', JSON.stringify(booking.selectedTimeslots, null, 2));
+    }
+    
+    // Return a more detailed response for admin bookings
+    res.status(201).json({
+      _id: booking._id,
+      customerName: booking.customerName,
+      customerEmail: booking.customerEmail,
+      customerPhone: booking.customerPhone,
+      date: booking.date,
+      status: booking.status,
+      // Include these fields for admin bookings to help with debugging
+      selectedTimeslots: booking.selectedTimeslots,
+      kartSelections: booking.kartSelections,
+      timeslotKartSelections: booking.timeslotKartSelections,
+      timeslotKartQuantities: booking.timeslotKartQuantities,
+      totalPrice: booking.totalPrice
+    });
   } else {
     res.status(400);
     throw new Error('Invalid booking data');

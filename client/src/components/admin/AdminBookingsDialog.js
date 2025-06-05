@@ -145,58 +145,84 @@ const AdminBookingsDialog = ({
                       <Typography variant="subtitle1" gutterBottom>
                         {t('booked_timeslots', 'Broneeritud ajad')}:
                       </Typography>
-                      {/* Use timeslots if available, otherwise fall back to selectedTimeslots */}
-                      {(booking.timeslots && booking.timeslots.length > 0) || (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) ? (
-                        // Use whichever array is available and has content
-                        (booking.timeslots && booking.timeslots.length > 0 ? booking.timeslots : booking.selectedTimeslots).map((ts, tsIndex) => (
-                          <Box key={tsIndex} sx={{ mb: 2 }}>
-                            <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
-                              {formatTimeslot(ts.startTime, ts.endTime)}
-                            </Typography>
-                            {/* Check for karts in the timeslot */}
-                            {ts.karts && ts.karts.length > 0 ? (
-                              <Box sx={{ pl: 2, mt: 1, backgroundColor: '#f9f9f9', p: 1, borderRadius: 1 }}>
-                                {ts.karts.map((kart, kartIndex) => (
-                                  <Typography key={kartIndex} variant="body2" sx={{ 
-                                    display: 'flex', 
-                                    justifyContent: 'space-between',
-                                    mb: 0.5,
-                                    fontWeight: kartIndex === 0 ? 'medium' : 'normal'
-                                  }}>
-                                    <span>{kart.name}:</span> 
-                                    <span>{kart.quantity} {t('units', 'tk')}</span>
-                                  </Typography>
-                                ))}
-                              </Box>
-                            ) : (
-                              // If no karts in timeslot, check if we can find karts in the booking's kartSelections
-                              booking.kartSelections && booking.kartSelections.length > 0 ? (
-                                <Box sx={{ pl: 2, mt: 1, backgroundColor: '#f9f9f9', p: 1, borderRadius: 1 }}>
-                                  {booking.kartSelections.map((kart, kartIndex) => (
-                                    <Typography key={kartIndex} variant="body2" sx={{ 
-                                      display: 'flex', 
-                                      justifyContent: 'space-between',
-                                      mb: 0.5,
-                                      fontWeight: kartIndex === 0 ? 'medium' : 'normal'
-                                    }}>
-                                      <span>{kart.name}:</span> 
-                                      <span>{kart.quantity} {t('units', 'tk')}</span>
-                                    </Typography>
-                                  ))}
-                                </Box>
-                              ) : (
-                                <Typography variant="body2" color="text.secondary">
-                                  {t('no_karts_selected', 'Karte pole valitud')}
+                      {/* Display booking timeslots */}
+                      {(() => {
+                        // First determine which timeslots array to use
+                        let timeslotsToUse = [];
+                        
+                        if (booking.timeslots && booking.timeslots.length > 0) {
+                          timeslotsToUse = booking.timeslots;
+                        } else if (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) {
+                          timeslotsToUse = booking.selectedTimeslots;
+                        }
+                        
+                        if (timeslotsToUse.length > 0) {
+                          return timeslotsToUse.map((ts, tsIndex) => {
+                            // Get timeslot key for looking up kart selections
+                            const timeslotKey = `${ts.startTime}-${ts.endTime}`;
+                            
+                            // Find karts for this timeslot
+                            let kartsToShow = [];
+                            
+                            // First check if the timeslot has karts directly
+                            if (ts.karts && Array.isArray(ts.karts) && ts.karts.length > 0) {
+                              kartsToShow = ts.karts;
+                            } 
+                            // Then check timeslotKartSelections
+                            else if (booking.timeslotKartSelections && booking.timeslotKartSelections[timeslotKey]) {
+                              const kartIds = booking.timeslotKartSelections[timeslotKey];
+                              const quantities = booking.timeslotKartQuantities?.[timeslotKey] || {};
+                              
+                              kartsToShow = kartIds.map(kartId => {
+                                // Find kart details in kartSelections
+                                const kartDetails = booking.kartSelections?.find(k => k.kartId === kartId);
+                                return {
+                                  kartId,
+                                  name: kartDetails?.name || 'Unknown Kart',
+                                  quantity: quantities[kartId] || kartDetails?.quantity || 1
+                                };
+                              });
+                            }
+                            // Finally fall back to overall kartSelections
+                            else if (booking.kartSelections && booking.kartSelections.length > 0) {
+                              kartsToShow = booking.kartSelections;
+                            }
+                            
+                            return (
+                              <Box key={tsIndex} sx={{ mb: 2, p: 1, backgroundColor: '#f5f5f5', borderRadius: 1 }}>
+                                <Typography variant="body1" sx={{ fontWeight: 'bold', mb: 1 }}>
+                                  {formatTimeslot(ts.startTime, ts.endTime)}
                                 </Typography>
-                              )
-                            )}
-                          </Box>
-                        ))
-                      ) : (
-                        <Typography variant="body2" color="text.secondary">
-                          {t('no_timeslots', 'Ajavahemikke pole valitud')}
-                        </Typography>
-                      )}
+                                
+                                {kartsToShow.length > 0 ? (
+                                  <Box sx={{ pl: 2, backgroundColor: '#ffffff', p: 1, borderRadius: 1, border: '1px solid #eee' }}>
+                                    {kartsToShow.map((kart, kartIndex) => (
+                                      <Typography key={kartIndex} variant="body2" sx={{ 
+                                        display: 'flex', 
+                                        justifyContent: 'space-between',
+                                        mb: 0.5
+                                      }}>
+                                        <span>{kart.name || 'Unknown Kart'}:</span> 
+                                        <span><b>{kart.quantity}</b> {t('units', 'tk')}</span>
+                                      </Typography>
+                                    ))}
+                                  </Box>
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary">
+                                    {t('no_karts_selected', 'Karte pole valitud')}
+                                  </Typography>
+                                )}
+                              </Box>
+                            );
+                          });
+                        } else {
+                          return (
+                            <Typography variant="body2" color="text.secondary">
+                              {t('no_timeslots', 'Ajavahemikke pole valitud')}
+                            </Typography>
+                          );
+                        }
+                      })()}
                     </Grid>
                   </Grid>
                 </Paper>

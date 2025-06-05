@@ -54,6 +54,10 @@ const AdminTimeslotView = () => {
   // Booking state
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [refreshCounter, setRefreshCounter] = useState(0); // Counter to force re-renders
+  const [bookingError, setBookingError] = useState(null);
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
   
   // Bookings dialog state
   const [bookingsDialogOpen, setBookingsDialogOpen] = useState(false);
@@ -61,9 +65,6 @@ const AdminTimeslotView = () => {
   const [timeslotBookings, setTimeslotBookings] = useState([]);
   const [bookingsLoading, setBookingsLoading] = useState(false);
   const [bookingsError, setBookingsError] = useState(null);
-  const [bookingError, setBookingError] = useState(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
   
   // Client data dialog state
   const [clientDialogOpen, setClientDialogOpen] = useState(false);
@@ -298,6 +299,7 @@ const AdminTimeslotView = () => {
   // Handle client data submission and booking creation
   const handleClientDataSubmit = async (clientData) => {
     // Prepare booking data
+    // Prepare the booking data in the exact format expected by the server
     const bookingData = {
       // Client data
       customerName: clientData.customerName,
@@ -307,6 +309,9 @@ const AdminTimeslotView = () => {
       
       // Booking data
       date: format(selectedDate, 'yyyy-MM-dd'),
+      status: 'confirmed',
+      
+      // Timeslots with kart selections
       timeslots: selectedTimeslots.map(timeslot => {
         const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
         const timeslotKarts = timeslotKartSelections[timeslotKey] || [];
@@ -320,15 +325,17 @@ const AdminTimeslotView = () => {
             return {
               kartId,
               name: kart?.name || 'Unknown Kart',
-              quantity: timeslotQuantities[kartId] || 1
+              quantity: timeslotQuantities[kartId] || 1,
+              price: kart?.price || 0,
+              pricePerSlot: kart?.price || 0
             };
           })
         };
       })
     };
     
-    // Add admin-specific fields
-    bookingData.status = 'confirmed';
+    // Add debug logging
+    console.log('Admin booking data prepared:', JSON.stringify(bookingData, null, 2));
     
     console.log('Booking data to save:', bookingData);
     
@@ -382,40 +389,56 @@ const AdminTimeslotView = () => {
       // First, set loading state to indicate refresh is happening
       setBookingLoading(true);
       
-      // Use a longer delay to ensure the server has fully processed the booking
-      setTimeout(async () => {
+      // Function to refresh timeslots
+      const refreshTimeslots = async () => {
         try {
           const timestamp = new Date().getTime();
+          const dateStr = format(selectedDate, 'yyyy-MM-dd');
           
-          // Dispatch the action to refresh timeslots
-          await dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp}`));
-          
-          // Force a direct API call to get the latest data
+          // Get the token from localStorage
           const userInfo = JSON.parse(localStorage.getItem('userInfo'));
           const token = userInfo?.token;
           
-          if (token) {
-            // Make a direct API call to get the latest timeslot data
-            const refreshResponse = await axios.get(`/api/bookings/admin-timeslots?date=${format(selectedDate, 'yyyy-MM-dd')}&_=${timestamp}`, {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            });
-            
-            console.log('Refreshed timeslot data:', refreshResponse.data);
+          if (!token) {
+            throw new Error('No authentication token found');
           }
+          
+          console.log('Refreshing timeslots for date:', dateStr);
+          
+          // First, make a direct API call to get the latest timeslot data
+          const refreshResponse = await axios.get(`/api/bookings/admin-timeslots?date=${dateStr}&_=${timestamp}`, {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          console.log('Direct API refresh response:', refreshResponse.data);
+          
+          // Then dispatch the Redux action to update the store
+          await dispatch(getAvailableTimeslots(`${dateStr}?_=${timestamp}`));
           
           // Show a success message that indicates the booking was saved and timeslots refreshed
           setSnackbarMessage(t('booking_saved_refresh_success', 'Broneering salvestatud ja ajavahemikud värskendatud!'));
           setSnackbarOpen(true);
+          
+          // Force a re-render by updating a state variable
+          setRefreshCounter(prev => prev + 1);
+          
+          return true;
         } catch (error) {
           console.error('Error refreshing timeslots after booking:', error);
           setSnackbarMessage(t('refresh_error', 'Ajavahemike värskendamine ebaõnnestus, palun laadige leht uuesti'));
           setSnackbarOpen(true);
+          return false;
         } finally {
           setBookingLoading(false);
         }
-      }, 2000); // Increased delay to 2 seconds
+      };
+      
+      // Try refreshing multiple times with increasing delays
+      setTimeout(() => refreshTimeslots(), 1000); // First attempt after 1 second
+      setTimeout(() => refreshTimeslots(), 3000); // Second attempt after 3 seconds
+      setTimeout(() => refreshTimeslots(), 5000); // Third attempt after 5 seconds
       
     } catch (error) {
       console.error('Error saving booking:', error);
