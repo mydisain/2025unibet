@@ -298,8 +298,8 @@ const AdminTimeslotView = () => {
   
   // Handle client data submission and booking creation
   const handleClientDataSubmit = async (clientData) => {
-    // Prepare booking data
-    // Prepare the booking data in the exact format expected by the server
+    // Prepare booking data in the exact format expected by the server
+    // The key here is to use selectedTimeslots instead of timeslots for admin bookings
     const bookingData = {
       // Client data
       customerName: clientData.customerName,
@@ -311,33 +311,62 @@ const AdminTimeslotView = () => {
       date: format(selectedDate, 'yyyy-MM-dd'),
       status: 'confirmed',
       
-      // Timeslots with kart selections
-      timeslots: selectedTimeslots.map(timeslot => {
-        const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
-        const timeslotKarts = timeslotKartSelections[timeslotKey] || [];
-        const timeslotQuantities = timeslotKartQuantities[timeslotKey] || {};
-        
-        return {
-          startTime: timeslot.startTime,
-          endTime: timeslot.endTime,
-          karts: timeslotKarts.map(kartId => {
-            const kart = karts.find(k => k._id === kartId);
-            return {
-              kartId,
-              name: kart?.name || 'Unknown Kart',
-              quantity: timeslotQuantities[kartId] || 1,
-              price: kart?.price || 0,
-              pricePerSlot: kart?.price || 0
-            };
-          })
-        };
-      })
+      // Create separate objects for timeslot kart selections and quantities
+      timeslotKartSelections: {},
+      timeslotKartQuantities: {},
+      
+      // Use selectedTimeslots array for admin bookings
+      selectedTimeslots: selectedTimeslots.map(timeslot => ({
+        startTime: timeslot.startTime,
+        endTime: timeslot.endTime
+      })),
+      
+      // Also include the timeslots array for backward compatibility
+      timeslots: selectedTimeslots.map(timeslot => ({
+        startTime: timeslot.startTime,
+        endTime: timeslot.endTime
+      })),
+      
+      // Add kart selections array
+      kartSelections: []
     };
+    
+    // Process kart selections for each timeslot
+    selectedTimeslots.forEach(timeslot => {
+      const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
+      const timeslotKarts = timeslotKartSelections[timeslotKey] || [];
+      const timeslotQuantities = timeslotKartQuantities[timeslotKey] || {};
+      
+      // Add kart selections for this timeslot
+      bookingData.timeslotKartSelections[timeslotKey] = timeslotKarts;
+      bookingData.timeslotKartQuantities[timeslotKey] = {};
+      
+      // Process each kart in this timeslot
+      timeslotKarts.forEach(kartId => {
+        const kart = karts.find(k => k._id === kartId);
+        const quantity = timeslotQuantities[kartId] || 1;
+        
+        // Add to timeslot kart quantities
+        bookingData.timeslotKartQuantities[timeslotKey][kartId] = quantity;
+        
+        // Add to overall kart selections
+        const existingKart = bookingData.kartSelections.find(k => k.kartId === kartId);
+        if (existingKart) {
+          existingKart.quantity += quantity;
+        } else {
+          bookingData.kartSelections.push({
+            kartId,
+            name: kart?.name || 'Unknown Kart',
+            quantity: quantity,
+            price: kart?.price || 0,
+            pricePerSlot: kart?.price || 0
+          });
+        }
+      });
+    });
     
     // Add debug logging
     console.log('Admin booking data prepared:', JSON.stringify(bookingData, null, 2));
-    
-    console.log('Booking data to save:', bookingData);
     
     try {
       setBookingLoading(true);
@@ -361,33 +390,30 @@ const AdminTimeslotView = () => {
         throw new Error(t('auth_error', 'Autentimise viga'));
       }
       
-      // Make API call to save booking
+      // Log the final booking data before sending
+      console.log('Final admin booking data to send:', JSON.stringify(bookingData, null, 2));
+      
+      // Create booking via API
       const response = await axios.post('/api/bookings/admin', bookingData, {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
       
-      console.log('Booking saved successfully:', response.data);
-      setBookingSuccess(true);
-      setSnackbarMessage(t('booking_saved_success', 'Broneering edukalt salvestatud!'));
+      console.log('Booking created successfully:', response.data);
+      
+      // Close the client dialog
+      handleClientDialogClose();
+      
+      // Show success message
+      setSnackbarMessage(t('booking_created', 'Broneering loodud'));
       setSnackbarOpen(true);
       
-      // Close client dialog
-      setClientDialogOpen(false);
-      
-      // Reset form after successful booking
+      // Reset selections
       setSelectedTimeslots([]);
-      setSelectedKarts([]);
-      setKartQuantities({});
-      setTimeslotKartQuantities({});
       setTimeslotKartSelections({});
-      setInitialKartSelection(null);
-      
-      // Refresh available timeslots with a delay to ensure server has processed the booking
-      // First, set loading state to indicate refresh is happening
-      setBookingLoading(true);
+      setTimeslotKartQuantities({});
       
       // Function to refresh timeslots
       const refreshTimeslots = async () => {

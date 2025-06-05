@@ -949,6 +949,13 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
     
     console.log('Looking for bookings with timeslot:', { startTime, endTime });
     console.log('Found bookings for date:', bookingsForDate.length);
+    console.log('All bookings for date:', JSON.stringify(bookingsForDate.map(b => {
+      return {
+        id: b._id,
+        timeslots: b.timeslots?.map(t => `${t.startTime}-${t.endTime}`) || [],
+        selectedTimeslots: b.selectedTimeslots?.map(t => `${t.startTime}-${t.endTime}`) || []
+      };
+    })));
     
     // Filter bookings that include the specified timeslot
     const bookingsForTimeslot = bookingsForDate.filter(booking => {
@@ -962,7 +969,22 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
         ts.startTime === startTime && ts.endTime === endTime
       );
       
-      return inSelectedTimeslots || inTimeslots;
+      // Also check in timeslotKartSelections if it exists
+      const timeslotKey = `${startTime}-${endTime}`;
+      const inTimeslotKartSelections = booking.timeslotKartSelections && 
+        booking.timeslotKartSelections[timeslotKey] && 
+        booking.timeslotKartSelections[timeslotKey].length > 0;
+      
+      const result = inSelectedTimeslots || inTimeslots || inTimeslotKartSelections;
+      if (result) {
+        console.log(`Booking ${booking._id} matches timeslot ${startTime}-${endTime}:`, {
+          inSelectedTimeslots,
+          inTimeslots,
+          inTimeslotKartSelections
+        });
+      }
+      
+      return result;
     });
     
     console.log('Found bookings for timeslot:', bookingsForTimeslot.length);
@@ -972,10 +994,36 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       // Create a new object with all booking fields
       const bookingObj = booking.toObject();
       
+      console.log(`Processing booking ${booking._id} with data:`, {
+        hasSelectedTimeslots: !!bookingObj.selectedTimeslots && bookingObj.selectedTimeslots.length > 0,
+        hasTimeslots: !!bookingObj.timeslots && bookingObj.timeslots.length > 0,
+        hasTimeslotKartSelections: !!bookingObj.timeslotKartSelections,
+        hasKartSelections: !!bookingObj.kartSelections && bookingObj.kartSelections.length > 0
+      });
+      
+      // Make sure both timeslots and selectedTimeslots arrays exist
+      if (!bookingObj.selectedTimeslots || !Array.isArray(bookingObj.selectedTimeslots)) {
+        bookingObj.selectedTimeslots = [];
+      }
+      
+      if (!bookingObj.timeslots || !Array.isArray(bookingObj.timeslots)) {
+        bookingObj.timeslots = [];
+      }
+      
+      // If selectedTimeslots is empty but timeslots exists, copy timeslots to selectedTimeslots
+      if (bookingObj.selectedTimeslots.length === 0 && bookingObj.timeslots.length > 0) {
+        bookingObj.selectedTimeslots = [...bookingObj.timeslots];
+      }
+      
+      // If timeslots is empty but selectedTimeslots exists, copy selectedTimeslots to timeslots
+      if (bookingObj.timeslots.length === 0 && bookingObj.selectedTimeslots.length > 0) {
+        bookingObj.timeslots = [...bookingObj.selectedTimeslots];
+      }
+      
       // Determine which timeslots array to use (selectedTimeslots or timeslots)
-      const timeslotsToUse = bookingObj.selectedTimeslots && bookingObj.selectedTimeslots.length > 0 
+      const timeslotsToUse = bookingObj.selectedTimeslots.length > 0 
         ? bookingObj.selectedTimeslots 
-        : (bookingObj.timeslots || []);
+        : bookingObj.timeslots;
       
       console.log('Timeslots to use for booking', booking._id, ':', timeslotsToUse.length);
       
