@@ -919,21 +919,71 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       status: { $ne: 'cancelled' } // Exclude cancelled bookings
     });
     
+    console.log('Looking for bookings with timeslot:', { startTime, endTime });
+    console.log('Found bookings for date:', bookingsForDate.length);
+    
     // Filter bookings that include the specified timeslot
     const bookingsForTimeslot = bookingsForDate.filter(booking => {
-      return booking.timeslots.some(ts => 
+      // Check in selectedTimeslots array
+      const inSelectedTimeslots = booking.selectedTimeslots && booking.selectedTimeslots.some(ts => 
         ts.startTime === startTime && ts.endTime === endTime
       );
+      
+      // For backward compatibility, also check in timeslots if it exists
+      const inTimeslots = booking.timeslots && booking.timeslots.some(ts => 
+        ts.startTime === startTime && ts.endTime === endTime
+      );
+      
+      return inSelectedTimeslots || inTimeslots;
     });
+    
+    console.log('Found bookings for timeslot:', bookingsForTimeslot.length);
     
     // For each booking, populate the kart information for all timeslots on this date
     const populatedBookings = await Promise.all(bookingsForTimeslot.map(async (booking) => {
       // Create a new object with all booking fields
       const bookingObj = booking.toObject();
       
+      // Determine which timeslots array to use (selectedTimeslots or timeslots)
+      const timeslotsToUse = bookingObj.selectedTimeslots && bookingObj.selectedTimeslots.length > 0 
+        ? bookingObj.selectedTimeslots 
+        : (bookingObj.timeslots || []);
+      
+      console.log('Timeslots to use for booking', booking._id, ':', timeslotsToUse.length);
+      
       // For each timeslot in the booking, populate the kart details
-      const populatedTimeslots = await Promise.all(bookingObj.timeslots.map(async (ts) => {
-        const populatedKarts = await Promise.all(ts.karts.map(async (kartItem) => {
+      const populatedTimeslots = await Promise.all(timeslotsToUse.map(async (ts) => {
+        // Get the timeslot key
+        const timeslotKey = `${ts.startTime}-${ts.endTime}`;
+        
+        // Get kart selections for this timeslot
+        let kartItems = [];
+        
+        // Try to get karts from different possible sources
+        if (ts.karts && Array.isArray(ts.karts)) {
+          // If the timeslot has karts directly
+          kartItems = ts.karts;
+        } else if (bookingObj.timeslotKartSelections && bookingObj.timeslotKartSelections[timeslotKey]) {
+          // If we have timeslotKartSelections, use those
+          const kartIds = bookingObj.timeslotKartSelections[timeslotKey];
+          const quantities = bookingObj.timeslotKartQuantities[timeslotKey] || {};
+          
+          kartItems = kartIds.map(kartId => ({
+            kartId,
+            quantity: quantities[kartId] || 1
+          }));
+        } else if (bookingObj.kartSelections && Array.isArray(bookingObj.kartSelections)) {
+          // Fallback to overall kartSelections
+          kartItems = bookingObj.kartSelections.map(ks => ({
+            kartId: ks.kartId,
+            quantity: ks.quantity
+          }));
+        }
+        
+        console.log('Kart items for timeslot', timeslotKey, ':', kartItems.length);
+        
+        // Populate kart details
+        const populatedKarts = await Promise.all(kartItems.map(async (kartItem) => {
           const kart = await Kart.findById(kartItem.kartId);
           return {
             kartId: kartItem.kartId,
@@ -949,9 +999,13 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
         };
       }));
       
+      // Return the booking with both timeslots and selectedTimeslots fields populated
+      // This ensures compatibility with the client-side code
       return {
         ...bookingObj,
-        timeslots: populatedTimeslots
+        timeslots: populatedTimeslots,
+        // Make sure the client has access to the populated timeslots
+        selectedTimeslots: populatedTimeslots
       };
     }));
     

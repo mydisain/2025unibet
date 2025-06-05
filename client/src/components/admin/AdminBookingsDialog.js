@@ -145,24 +145,34 @@ const AdminBookingsDialog = ({
                       <Typography variant="subtitle1" gutterBottom>
                         {t('booked_timeslots', 'Broneeritud ajad')}:
                       </Typography>
-                      {booking.timeslots && booking.timeslots.length > 0 ? (
-                        <Box>
-                          {booking.timeslots.map((ts, tsIndex) => (
-                            <Box 
-                              key={tsIndex} 
-                              sx={{ 
-                                mb: 1, 
-                                p: 1, 
-                                backgroundColor: selectedTimeslot && ts.startTime === selectedTimeslot.startTime ? '#e3f2fd' : '#f5f5f5',
-                                borderRadius: 1
-                              }}
-                            >
-                              <Typography variant="body2" fontWeight="bold">
-                                {formatTimeslot(ts.startTime, ts.endTime)}
-                              </Typography>
-                              {ts.karts && ts.karts.length > 0 ? (
+                      {/* Use timeslots if available, otherwise fall back to selectedTimeslots */}
+                      {(booking.timeslots && booking.timeslots.length > 0) || (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) ? (
+                        // Use whichever array is available and has content
+                        (booking.timeslots && booking.timeslots.length > 0 ? booking.timeslots : booking.selectedTimeslots).map((ts, tsIndex) => (
+                          <Box key={tsIndex} sx={{ mb: 2 }}>
+                            <Typography variant="body1" sx={{ fontWeight: 'medium' }}>
+                              {formatTimeslot(ts.startTime, ts.endTime)}
+                            </Typography>
+                            {/* Check for karts in the timeslot */}
+                            {ts.karts && ts.karts.length > 0 ? (
+                              <Box sx={{ pl: 2, mt: 1, backgroundColor: '#f9f9f9', p: 1, borderRadius: 1 }}>
+                                {ts.karts.map((kart, kartIndex) => (
+                                  <Typography key={kartIndex} variant="body2" sx={{ 
+                                    display: 'flex', 
+                                    justifyContent: 'space-between',
+                                    mb: 0.5,
+                                    fontWeight: kartIndex === 0 ? 'medium' : 'normal'
+                                  }}>
+                                    <span>{kart.name}:</span> 
+                                    <span>{kart.quantity} {t('units', 'tk')}</span>
+                                  </Typography>
+                                ))}
+                              </Box>
+                            ) : (
+                              // If no karts in timeslot, check if we can find karts in the booking's kartSelections
+                              booking.kartSelections && booking.kartSelections.length > 0 ? (
                                 <Box sx={{ pl: 2, mt: 1, backgroundColor: '#f9f9f9', p: 1, borderRadius: 1 }}>
-                                  {ts.karts.map((kart, kartIndex) => (
+                                  {booking.kartSelections.map((kart, kartIndex) => (
                                     <Typography key={kartIndex} variant="body2" sx={{ 
                                       display: 'flex', 
                                       justifyContent: 'space-between',
@@ -178,13 +188,13 @@ const AdminBookingsDialog = ({
                                 <Typography variant="body2" color="text.secondary">
                                   {t('no_karts_selected', 'Karte pole valitud')}
                                 </Typography>
-                              )}
-                            </Box>
-                          ))}
-                        </Box>
+                              )
+                            )}
+                          </Box>
+                        ))
                       ) : (
                         <Typography variant="body2" color="text.secondary">
-                          {t('no_timeslots_found', 'Ajavahemikke ei leitud')}
+                          {t('no_timeslots', 'Ajavahemikke pole valitud')}
                         </Typography>
                       )}
                     </Grid>

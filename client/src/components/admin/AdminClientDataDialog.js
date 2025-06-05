@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -25,7 +25,9 @@ const AdminClientDataDialog = ({
   timeslotKartSelections,
   timeslotKartQuantities,
   karts,
-  loading
+  loading,
+  existingClientData = null,
+  viewOnly = false
 }) => {
   const { t } = useTranslation();
   
@@ -35,6 +37,13 @@ const AdminClientDataDialog = ({
     customerPhone: '',
     notes: ''
   });
+  
+  // Initialize client data if provided
+  useEffect(() => {
+    if (existingClientData) {
+      setClientData(existingClientData);
+    }
+  }, [existingClientData]);
   
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -77,52 +86,79 @@ const AdminClientDataDialog = ({
       maxWidth="md"
       fullWidth
     >
-      <DialogTitle>{t('new_booking', 'Uus broneering')}</DialogTitle>
+      <DialogTitle>
+        {viewOnly 
+          ? t('booking_details', 'Broneeringu detailid') 
+          : t('client_data', 'Kliendi andmed')}
+      </DialogTitle>
       <DialogContent>
-        <Box sx={{ mb: 3 }}>
-          <TextField
-            fullWidth
-            required
-            margin="normal"
-            label={t('customer_name', 'Kliendi nimi')}
-            name="customerName"
-            value={clientData.customerName}
-            onChange={handleChange}
-            placeholder={t('enter_customer_name', 'Sisesta kliendi nimi')}
-          />
-          <TextField
-            fullWidth
-            required
-            margin="normal"
-            label={t('customer_email', 'E-post')}
-            name="customerEmail"
-            type="email"
-            value={clientData.customerEmail}
-            onChange={handleChange}
-            placeholder={t('enter_customer_email', 'Sisesta e-posti aadress')}
-          />
-          <TextField
-            fullWidth
-            required
-            margin="normal"
-            label={t('customer_phone', 'Telefon')}
-            name="customerPhone"
-            value={clientData.customerPhone}
-            onChange={handleChange}
-            placeholder={t('enter_customer_phone', 'Sisesta telefoninumber')}
-          />
-          <TextField
-            fullWidth
-            margin="normal"
-            label={t('notes', 'Märkused')}
-            name="notes"
-            value={clientData.notes}
-            onChange={handleChange}
-            multiline
-            rows={4}
-            placeholder={t('enter_notes', 'Sisesta märkused')}
-          />
-        </Box>
+        {viewOnly ? (
+          <Box sx={{ minWidth: 400 }}>
+            <Typography variant="h6" gutterBottom>
+              {t('client_information', 'Kliendi informatsioon')}
+            </Typography>
+            <Paper elevation={1} sx={{ p: 2, mb: 2, backgroundColor: '#f8f8f8' }}>
+              <Typography variant="subtitle1" fontWeight="bold">
+                {clientData.customerName}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                <strong>{t('email', 'E-post')}:</strong> {clientData.customerEmail}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                <strong>{t('phone', 'Telefon')}:</strong> {clientData.customerPhone}
+              </Typography>
+              {clientData.notes && (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  <strong>{t('notes', 'Märkused')}:</strong> {clientData.notes}
+                </Typography>
+              )}
+            </Paper>
+          </Box>
+        ) : (
+          <Box sx={{ minWidth: 400 }}>
+            <TextField
+              fullWidth
+              required
+              margin="normal"
+              label={t('customer_name', 'Nimi')}
+              name="customerName"
+              value={clientData.customerName}
+              onChange={handleChange}
+              placeholder={t('enter_customer_name', 'Sisesta nimi')}
+            />
+            <TextField
+              fullWidth
+              required
+              margin="normal"
+              label={t('customer_email', 'E-post')}
+              name="customerEmail"
+              value={clientData.customerEmail}
+              onChange={handleChange}
+              placeholder={t('enter_customer_email', 'Sisesta e-posti aadress')}
+            />
+            <TextField
+              fullWidth
+              required
+              margin="normal"
+              label={t('customer_phone', 'Telefon')}
+              name="customerPhone"
+              value={clientData.customerPhone}
+              onChange={handleChange}
+              placeholder={t('enter_customer_phone', 'Sisesta telefoninumber')}
+            />
+            <TextField
+              fullWidth
+              margin="normal"
+              label={t('notes', 'Märkused')}
+              name="notes"
+              value={clientData.notes}
+              onChange={handleChange}
+              multiline
+              rows={4}
+              placeholder={t('enter_notes', 'Sisesta märkused')}
+            />
+          </Box>
+        )}
         
         <Divider sx={{ my: 2 }} />
         
@@ -170,20 +206,22 @@ const AdminClientDataDialog = ({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>
-          {t('cancel', 'Tühista')}
+          {viewOnly ? t('close', 'Sulge') : t('cancel', 'Tühista')}
         </Button>
-        <Button 
-          onClick={handleSubmit} 
-          variant="contained" 
-          color="primary"
-          disabled={loading || !clientData.customerName || !clientData.customerEmail || !clientData.customerPhone}
-        >
-          {loading ? (
-            <CircularProgress size={24} color="inherit" />
-          ) : (
-            t('create_booking', 'Loo broneering')
-          )}
-        </Button>
+        {!viewOnly && (
+          <Button 
+            onClick={handleSubmit}
+            variant="contained" 
+            color="primary"
+            disabled={loading}
+          >
+            {loading ? (
+              <CircularProgress size={24} />
+            ) : (
+              t('save', 'Salvesta')
+            )}
+          </Button>
+        )}
       </DialogActions>
     </Dialog>
   );

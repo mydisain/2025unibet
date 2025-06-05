@@ -379,14 +379,43 @@ const AdminTimeslotView = () => {
       setInitialKartSelection(null);
       
       // Refresh available timeslots with a delay to ensure server has processed the booking
-      setTimeout(() => {
-        const timestamp = new Date().getTime();
-        dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp}`));
-        
-        // Show a success message that indicates the booking was saved
-        setSnackbarMessage(t('booking_saved_refresh_success', 'Broneering salvestatud ja ajavahemikud värskendatud!'));
-        setSnackbarOpen(true);
-      }, 1000);
+      // First, set loading state to indicate refresh is happening
+      setBookingLoading(true);
+      
+      // Use a longer delay to ensure the server has fully processed the booking
+      setTimeout(async () => {
+        try {
+          const timestamp = new Date().getTime();
+          
+          // Dispatch the action to refresh timeslots
+          await dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp}`));
+          
+          // Force a direct API call to get the latest data
+          const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+          const token = userInfo?.token;
+          
+          if (token) {
+            // Make a direct API call to get the latest timeslot data
+            const refreshResponse = await axios.get(`/api/bookings/admin-timeslots?date=${format(selectedDate, 'yyyy-MM-dd')}&_=${timestamp}`, {
+              headers: {
+                'Authorization': `Bearer ${token}`
+              }
+            });
+            
+            console.log('Refreshed timeslot data:', refreshResponse.data);
+          }
+          
+          // Show a success message that indicates the booking was saved and timeslots refreshed
+          setSnackbarMessage(t('booking_saved_refresh_success', 'Broneering salvestatud ja ajavahemikud värskendatud!'));
+          setSnackbarOpen(true);
+        } catch (error) {
+          console.error('Error refreshing timeslots after booking:', error);
+          setSnackbarMessage(t('refresh_error', 'Ajavahemike värskendamine ebaõnnestus, palun laadige leht uuesti'));
+          setSnackbarOpen(true);
+        } finally {
+          setBookingLoading(false);
+        }
+      }, 2000); // Increased delay to 2 seconds
       
     } catch (error) {
       console.error('Error saving booking:', error);
@@ -464,20 +493,62 @@ const AdminTimeslotView = () => {
       
       // Check if the response data has the expected structure
       if (response.data && Array.isArray(response.data)) {
-        response.data.forEach((booking, index) => {
-          console.log(`Booking ${index + 1}:`, booking);
-          console.log(`Booking ${index + 1} timeslots:`, booking.timeslots);
+        // Process each booking to ensure it has the correct structure for display
+        const processedBookings = response.data.map(booking => {
+          console.log(`Processing booking:`, booking._id);
           
-          if (booking.timeslots && booking.timeslots.length > 0) {
-            booking.timeslots.forEach((ts, tsIndex) => {
-              console.log(`Booking ${index + 1}, Timeslot ${tsIndex + 1}:`, ts);
-              console.log(`Booking ${index + 1}, Timeslot ${tsIndex + 1} karts:`, ts.karts);
-            });
+          // Ensure each booking has a timeslots array
+          if (!booking.timeslots || !Array.isArray(booking.timeslots) || booking.timeslots.length === 0) {
+            console.log(`No timeslots found, using selectedTimeslots:`, booking.selectedTimeslots);
+            // If no timeslots, use selectedTimeslots if available
+            if (booking.selectedTimeslots && Array.isArray(booking.selectedTimeslots) && booking.selectedTimeslots.length > 0) {
+              booking.timeslots = booking.selectedTimeslots;
+            } else {
+              booking.timeslots = [];
+            }
           }
+          
+          // Process each timeslot to ensure it has karts
+          booking.timeslots = booking.timeslots.map(ts => {
+            // If timeslot doesn't have karts, try to get them from timeslotKartSelections
+            if (!ts.karts || !Array.isArray(ts.karts) || ts.karts.length === 0) {
+              const timeslotKey = `${ts.startTime}-${ts.endTime}`;
+              const kartSelections = booking.timeslotKartSelections?.[timeslotKey] || [];
+              const kartQuantities = booking.timeslotKartQuantities?.[timeslotKey] || {};
+              
+              // Create karts array from kartSelections
+              if (kartSelections.length > 0) {
+                ts.karts = kartSelections.map(kartId => {
+                  const kart = booking.kartSelections?.find(k => k.kartId === kartId);
+                  return {
+                    kartId,
+                    name: kart?.name || 'Unknown Kart',
+                    quantity: kartQuantities[kartId] || kart?.quantity || 1
+                  };
+                });
+              } else if (booking.kartSelections && booking.kartSelections.length > 0) {
+                // Fallback to overall kartSelections
+                ts.karts = booking.kartSelections.map(kart => ({
+                  kartId: kart.kartId,
+                  name: kart.name || 'Unknown Kart',
+                  quantity: kart.quantity || 1
+                }));
+              } else {
+                ts.karts = [];
+              }
+            }
+            return ts;
+          });
+          
+          return booking;
         });
+        
+        // Update the timeslot bookings with the processed data
+        setTimeslotBookings(processedBookings);
+      } else {
+        console.log('No bookings found or invalid response format');
+        setTimeslotBookings([]);
       }
-      
-      setTimeslotBookings(response.data);
       // Open the bookings dialog immediately after setting the data
       setBookingsDialogOpen(true);
     } catch (error) {
