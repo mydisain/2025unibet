@@ -11,8 +11,12 @@ import {
   Paper,
   Grid,
   CircularProgress,
-  Alert
+  Alert,
+  IconButton,
+  Tooltip
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import CancelIcon from '@mui/icons-material/Cancel';
 
 const AdminBookingsDialog = ({ 
   open, 
@@ -20,9 +24,27 @@ const AdminBookingsDialog = ({
   selectedTimeslot,
   timeslotBookings, 
   loading, 
-  error 
+  error,
+  onEditBooking,
+  onCancelBooking
 }) => {
   const { t } = useTranslation();
+  
+  // Handle edit booking button click
+  const handleEditClick = (event, booking) => {
+    event.stopPropagation();
+    if (onEditBooking) {
+      onEditBooking(booking);
+    }
+  };
+  
+  // Handle cancel booking button click
+  const handleCancelClick = (event, booking) => {
+    event.stopPropagation();
+    if (onCancelBooking) {
+      onCancelBooking(booking);
+    }
+  };
 
   // Helper function to format timeslot for display
   const formatTimeslot = (startTime, endTime) => {
@@ -56,21 +78,66 @@ const AdminBookingsDialog = ({
           <Box>
             {timeslotBookings && timeslotBookings.length > 0 ? (
               timeslotBookings.map((booking, index) => (
-                <Paper key={booking._id} sx={{ p: 2, mb: 3, backgroundColor: '#f8f8f8' }}>
+                <Paper key={booking._id} sx={{ p: 2, mb: 3, backgroundColor: '#f8f8f8', borderLeft: '4px solid', borderColor: booking.status === 'confirmed' ? 'success.main' : booking.status === 'cancelled' ? 'error.main' : 'warning.main' }}>
                   <Grid container spacing={2}>
-                    <Grid item xs={12} md={6}>
-                      <Typography variant="h6" gutterBottom>
+                    <Grid item xs={12} sx={{ mb: 1, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="h6">
                         {booking.customerName}
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                        <strong>{t('email', 'E-post')}:</strong> {booking.customerEmail}
+                      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                        <Box sx={{ 
+                          display: 'inline-block', 
+                          px: 1.5, 
+                          py: 0.5, 
+                          borderRadius: 1, 
+                          fontSize: '0.75rem',
+                          fontWeight: 'medium',
+                          color: 'white',
+                          bgcolor: booking.status === 'confirmed' ? 'success.main' : booking.status === 'cancelled' ? 'error.main' : 'warning.main',
+                          mr: 1
+                        }}>
+                          {booking.status === 'confirmed' ? t('confirmed', 'Kinnitatud') : 
+                           booking.status === 'cancelled' ? t('cancelled', 'Tühistatud') : 
+                           t('pending', 'Ootel')}
+                        </Box>
+                        {booking.status !== 'cancelled' && (
+                          <>
+                            <Tooltip title={t('edit_booking', 'Muuda broneeringut')}>
+                              <IconButton 
+                                size="small" 
+                                color="primary" 
+                                onClick={(e) => handleEditClick(e, booking)}
+                                sx={{ mr: 0.5 }}
+                              >
+                                <EditIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title={t('cancel_booking', 'Tühista broneering')}>
+                              <IconButton 
+                                size="small" 
+                                color="error" 
+                                onClick={(e) => handleCancelClick(e, booking)}
+                              >
+                                <CancelIcon fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                          </>
+                        )}
+                      </Box>
+                    </Grid>
+                    <Grid item xs={12} md={6}>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, display: 'flex' }}>
+                        <strong style={{ minWidth: '80px' }}>{t('email', 'E-post')}:</strong> 
+                        <span>{booking.customerEmail}</span>
                       </Typography>
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                        <strong>{t('phone', 'Telefon')}:</strong> {booking.customerPhone}
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, display: 'flex' }}>
+                        <strong style={{ minWidth: '80px' }}>{t('phone', 'Telefon')}:</strong> 
+                        <span>{booking.customerPhone}</span>
                       </Typography>
                       {booking.notes && (
-                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                          <strong>{t('notes', 'Märkused')}:</strong> {booking.notes}
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1, display: 'flex' }}>
+                          <strong style={{ minWidth: '80px' }}>{t('notes', 'Märkused')}:</strong> 
+                          <span>{booking.notes}</span>
                         </Typography>
                       )}
                     </Grid>
@@ -94,10 +161,16 @@ const AdminBookingsDialog = ({
                                 {formatTimeslot(ts.startTime, ts.endTime)}
                               </Typography>
                               {ts.karts && ts.karts.length > 0 ? (
-                                <Box sx={{ pl: 2 }}>
+                                <Box sx={{ pl: 2, mt: 1, backgroundColor: '#f9f9f9', p: 1, borderRadius: 1 }}>
                                   {ts.karts.map((kart, kartIndex) => (
-                                    <Typography key={kartIndex} variant="body2">
-                                      {kart.name}: {kart.quantity} {t('units', 'tk')}
+                                    <Typography key={kartIndex} variant="body2" sx={{ 
+                                      display: 'flex', 
+                                      justifyContent: 'space-between',
+                                      mb: 0.5,
+                                      fontWeight: kartIndex === 0 ? 'medium' : 'normal'
+                                    }}>
+                                      <span>{kart.name}:</span> 
+                                      <span>{kart.quantity} {t('units', 'tk')}</span>
                                     </Typography>
                                   ))}
                                 </Box>

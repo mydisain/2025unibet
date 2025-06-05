@@ -327,6 +327,9 @@ const AdminTimeslotView = () => {
       })
     };
     
+    // Add admin-specific fields
+    bookingData.status = 'confirmed';
+    
     console.log('Booking data to save:', bookingData);
     
     try {
@@ -375,9 +378,15 @@ const AdminTimeslotView = () => {
       setTimeslotKartSelections({});
       setInitialKartSelection(null);
       
-      // Refresh available timeslots
-      const timestamp = new Date().getTime();
-      dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp}`));
+      // Refresh available timeslots with a delay to ensure server has processed the booking
+      setTimeout(() => {
+        const timestamp = new Date().getTime();
+        dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp}`));
+        
+        // Show a success message that indicates the booking was saved
+        setSnackbarMessage(t('booking_saved_refresh_success', 'Broneering salvestatud ja ajavahemikud värskendatud!'));
+        setSnackbarOpen(true);
+      }, 1000);
       
     } catch (error) {
       console.error('Error saving booking:', error);
@@ -410,16 +419,17 @@ const AdminTimeslotView = () => {
     });
   };
   
-  // Handle opening the bookings dialog
+  // Handle bookings button click
   const handleBookingsButtonClick = async (event, timeslot) => {
-    event.stopPropagation(); // Prevent the timeslot button click event
-    
-    setSelectedTimeslotBookings(timeslot);
-    setBookingsDialogOpen(true);
-    setBookingsLoading(true);
-    setBookingsError(null);
+    // Important: Stop event propagation to prevent the timeslot button click event
+    event.stopPropagation();
+    event.preventDefault();
     
     try {
+      setBookingsLoading(true);
+      setBookingsError(null);
+      setSelectedTimeslotBookings(timeslot);
+      
       // Get the token from userInfo in localStorage
       const userInfoString = localStorage.getItem('userInfo');
       if (!userInfoString) {
@@ -468,9 +478,13 @@ const AdminTimeslotView = () => {
       }
       
       setTimeslotBookings(response.data);
+      // Open the bookings dialog immediately after setting the data
+      setBookingsDialogOpen(true);
     } catch (error) {
       console.error('Error fetching timeslot bookings:', error);
-      setBookingsError(error.message || t('bookings_fetch_error', 'Viga broneeringute laadimisel'));
+      setBookingsError(error.response?.data?.message || error.message);
+      // Still open the dialog even if there's an error, so the error can be displayed
+      setBookingsDialogOpen(true);
     } finally {
       setBookingsLoading(false);
     }
@@ -481,6 +495,67 @@ const AdminTimeslotView = () => {
     setBookingsDialogOpen(false);
     setSelectedTimeslotBookings(null);
     setTimeslotBookings([]);
+  };
+  
+  // Handle edit booking
+  const handleEditBooking = (booking) => {
+    console.log('Edit booking:', booking);
+    // TODO: Implement edit booking functionality
+    // For now, just show a snackbar message
+    setSnackbarMessage(t('edit_booking_not_implemented', 'Broneeringu muutmine pole veel implementeeritud'));
+    setSnackbarOpen(true);
+  };
+  
+  // Handle cancel booking
+  const handleCancelBooking = async (booking) => {
+    if (!window.confirm(t('confirm_cancel_booking', 'Kas olete kindel, et soovite selle broneeringu tühistada?'))) {
+      return;
+    }
+    
+    try {
+      // Get the token from userInfo in localStorage
+      const userInfoString = localStorage.getItem('userInfo');
+      if (!userInfoString) {
+        throw new Error(t('not_authenticated', 'Kasutaja pole sisse logitud'));
+      }
+      
+      let token;
+      try {
+        const userInfo = JSON.parse(userInfoString);
+        if (!userInfo || !userInfo.token) {
+          throw new Error(t('invalid_token', 'Vigane autentimistoken'));
+        }
+        token = userInfo.token;
+      } catch (error) {
+        console.error('Error parsing userInfo from localStorage:', error);
+        throw new Error(t('auth_error', 'Autentimise viga'));
+      }
+      
+      // Make API call to cancel the booking
+      await axios.put(`/api/bookings/${booking._id}`, { status: 'cancelled' }, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      // Show success message
+      setSnackbarMessage(t('booking_cancelled_success', 'Broneering edukalt tühistatud!'));
+      setSnackbarOpen(true);
+      
+      // Refresh the bookings list
+      if (selectedTimeslotBookings) {
+        handleBookingsButtonClick(new Event('click'), selectedTimeslotBookings);
+      }
+      
+      // Refresh available timeslots
+      const timestamp = new Date().getTime();
+      dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp}`));
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      setSnackbarMessage(error.response?.data?.message || error.message);
+      setSnackbarOpen(true);
+    }
   };
   
   return (
@@ -524,6 +599,8 @@ const AdminTimeslotView = () => {
         timeslotBookings={timeslotBookings}
         loading={bookingsLoading}
         error={bookingsError}
+        onEditBooking={handleEditBooking}
+        onCancelBooking={handleCancelBooking}
       />
       
       {/* Snackbar for notifications */}
@@ -605,6 +682,14 @@ const AdminTimeslotView = () => {
                           color="success"
                           onClick={(event) => handleBookingsButtonClick(event, timeslot)}
                           size="small"
+                          sx={{ 
+                            fontWeight: 'bold',
+                            boxShadow: 2,
+                            '&:hover': {
+                              boxShadow: 4,
+                              backgroundColor: '#2e7d32'
+                            }
+                          }}
                         >
                           {t('bookings', 'Broneeringuid')}: {timeslot.totalBooked}
                         </Button>

@@ -20,21 +20,29 @@ const createBooking = asyncHandler(async (req, res) => {
   if (isAdminBooking) {
     // Handle admin booking format
     console.log('Creating admin booking');
-    const { date, timeslots } = req.body;
+    const { 
+      customerName, 
+      customerEmail, 
+      customerPhone, 
+      notes, 
+      date, 
+      timeslots,
+      status 
+    } = req.body;
     
     if (!date || !timeslots || !Array.isArray(timeslots) || timeslots.length === 0) {
       res.status(400);
       throw new Error('Invalid admin booking data. Date and timeslots are required.');
     }
     
-    // Set admin booking defaults
+    // Set admin booking data from request or use defaults
     bookingData = {
-      customerName: 'Admin Booking',
-      customerEmail: 'admin@bookid.ee',
-      customerPhone: '123456789',
+      customerName: customerName || 'Admin Booking',
+      customerEmail: customerEmail || 'admin@bookid.ee',
+      customerPhone: customerPhone || '123456789',
       date,
-      notes: 'Created by admin',
-      status: 'confirmed'
+      notes: notes || 'Created by admin',
+      status: status || 'confirmed'
     };
     
     // Process timeslots from admin format
