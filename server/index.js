@@ -49,46 +49,25 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// CORS Configuration with specific allowed origins
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:3009',
-  'https://test.bookid.ee',
-  'https://unibet-2025.onrender.com'
-];
+// CORS Configuration - Allow all origins for now to debug the issue
+app.use(cors());
 
-// Configure CORS with specific options
-app.use(cors({
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps, curl, etc)
-    if (!origin) {
-      console.log('Request with no origin allowed');
-      return callback(null, true);
-    }
-    
-    if (allowedOrigins.indexOf(origin) !== -1 || !origin) {
-      console.log(`Origin allowed: ${origin}`);
-      callback(null, true);
-    } else {
-      console.log(`Origin not allowed: ${origin}`);
-      callback(null, true); // Still allow for now, but log it
-    }
-  },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization']
-}));
-
-// Add explicit CORS headers to all responses for maximum compatibility
+// Add explicit CORS headers for all responses
 app.use((req, res, next) => {
-  // Log the request for debugging
-  console.log(`${new Date().toISOString()} - Request from origin:`, req.headers.origin);
-  console.log(`${new Date().toISOString()} - Request method:`, req.method);
-  console.log(`${new Date().toISOString()} - Request path:`, req.path);
+  // Set permissive CORS headers for debugging
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Allow-Credentials', 'true');
   
-  // Handle preflight requests immediately
+  // Log detailed information about the request
+  console.log(`${new Date().toISOString()} - CORS Debug - Request from origin:`, req.headers.origin);
+  console.log(`${new Date().toISOString()} - CORS Debug - Request method:`, req.method);
+  console.log(`${new Date().toISOString()} - CORS Debug - Request path:`, req.path);
+  
+  // Handle OPTIONS requests immediately
   if (req.method === 'OPTIONS') {
-    console.log(`${new Date().toISOString()} - Responding to OPTIONS preflight request`);
+    console.log(`${new Date().toISOString()} - CORS Debug - Handling OPTIONS preflight request`);
     return res.status(200).end();
   }
   
