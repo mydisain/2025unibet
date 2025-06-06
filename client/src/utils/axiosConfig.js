@@ -4,9 +4,17 @@ import axios from 'axios';
 // This ensures consistent behavior regardless of environment
 console.log('Configuring axios to use production backend URL');
 
+// Get API URL from environment variables or use default
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'https://unibet-2025-api.onrender.com';
+
 // Create Axios instance with production URL
 const axiosInstance = axios.create({
-  baseURL: 'https://two025unibet-kardikeskus.onrender.com', // Production backend URL on Render.com
+  baseURL: API_BASE_URL,
+  withCredentials: false, // Don't send cookies with cross-origin requests
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
 });
 
 // For local development (uncomment when needed):

@@ -23,7 +23,7 @@ import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker as MuiDatePicker } from '@mui/x-date-pickers';
 import { format, addDays, subDays, isEqual } from 'date-fns';
 import { et } from 'date-fns/locale';
-import axios from 'axios';
+import axiosInstance from '../../utils/axiosConfig';
 import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
 import EventAvailableIcon from '@mui/icons-material/EventAvailable';
 import EventBusyIcon from '@mui/icons-material/EventBusy';
@@ -36,12 +36,7 @@ import AdminKartSelectionDialog from './AdminKartSelectionDialog';
 import AdminClientDataDialog from './AdminClientDataDialog';
 import AdminBookingsDialog from './AdminBookingsDialog';
 
-// Utility function to get the API base URL
-const getApiBaseUrl = () => {
-  const apiUrl = process.env.REACT_APP_API_URL || 'https://unibet-2025-api.onrender.com';
-  console.log('Using API base URL:', apiUrl);
-  return apiUrl;
-};
+// API calls will use the axiosInstance which already has the correct base URL
 
 const AdminTimeslotView = () => {
   const { t } = useTranslation();
@@ -401,16 +396,8 @@ const AdminTimeslotView = () => {
       // Log the final booking data before sending
       console.log('Final admin booking data to send:', JSON.stringify(bookingData, null, 2));
       
-      // Get the API base URL using our utility function
-      const apiBaseUrl = getApiBaseUrl();
-      
-      // Create booking via API with full URL
-      const response = await axios.post(`${apiBaseUrl}/api/bookings/admin`, bookingData, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Create booking via API using axiosInstance
+      const response = await axiosInstance.post('/api/bookings/admin', bookingData);
       
       console.log('Booking created successfully:', response.data);
       
@@ -442,16 +429,8 @@ const AdminTimeslotView = () => {
           
           console.log('Refreshing timeslots for date:', dateStr);
           
-          // Get the API base URL using our utility function
-          const apiBaseUrl = getApiBaseUrl();
-          
-          // First, make a direct API call to get the latest timeslot data
-          const refreshResponse = await axios.get(`${apiBaseUrl}/api/bookings/admin-timeslots?date=${dateStr}&_=${timestamp}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            }
-          });
+          // First, make a direct API call to get the latest timeslot data using axiosInstance
+          const refreshResponse = await axiosInstance.get(`/api/bookings/admin-timeslots?date=${dateStr}&_=${timestamp}`);
           
           console.log('Direct API refresh response:', refreshResponse.data);
           
@@ -550,19 +529,12 @@ const AdminTimeslotView = () => {
         timeslotKey: `${timeslot.startTime}-${timeslot.endTime}`
       });
       
-      // Get the API base URL using our utility function
-      const apiBaseUrl = getApiBaseUrl();
-      
-      // Fetch bookings for this timeslot and date with full URL
-      const response = await axios.get(`${apiBaseUrl}/api/bookings/timeslot`, {
+      // Fetch bookings for this timeslot and date using axiosInstance
+      const response = await axiosInstance.get('/api/bookings/timeslot', {
         params: {
           date: requestDate,
           startTime: timeslot.startTime,
           endTime: timeslot.endTime
-        },
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
         }
       });
       
@@ -716,12 +688,7 @@ const AdminTimeslotView = () => {
       }
       
       // Make API call to cancel the booking
-      await axios.put(`/api/bookings/${booking._id}`, { status: 'cancelled' }, {
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      await axiosInstance.put(`/api/bookings/${booking._id}`, { status: 'cancelled' });
       
       // Show success message
       setSnackbarMessage(t('booking_cancelled_success', 'Broneering edukalt tühistatud!'));
