@@ -16,24 +16,32 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogActions
+  DialogActions,
+  TextField
 } from '@mui/material';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { LocalizationProvider, DatePicker as MuiDatePicker } from '@mui/x-date-pickers';
-import { format, addDays } from 'date-fns';
+import { format, addDays, subDays, isEqual } from 'date-fns';
 import { et } from 'date-fns/locale';
-import TextField from '@mui/material/TextField';
 import axios from 'axios';
-
-// Import actions
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth';
+import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import EventBusyIcon from '@mui/icons-material/EventBusy';
+import DirectionsCarIcon from '@mui/icons-material/DirectionsCar';
+import PersonIcon from '@mui/icons-material/Person';
 import { getAvailableTimeslots } from '../../redux/slices/bookingSlice';
 import { getSettings } from '../../redux/slices/settingSlice';
 import { getKarts } from '../../redux/slices/kartSlice';
-
-// Import components
 import AdminKartSelectionDialog from './AdminKartSelectionDialog';
 import AdminClientDataDialog from './AdminClientDataDialog';
 import AdminBookingsDialog from './AdminBookingsDialog';
+
+// Utility function to get the API base URL
+const getApiBaseUrl = () => {
+  const apiUrl = process.env.REACT_APP_API_URL || 'https://unibet-2025-api.onrender.com';
+  console.log('Using API base URL:', apiUrl);
+  return apiUrl;
+};
 
 const AdminTimeslotView = () => {
   const { t } = useTranslation();
@@ -393,8 +401,11 @@ const AdminTimeslotView = () => {
       // Log the final booking data before sending
       console.log('Final admin booking data to send:', JSON.stringify(bookingData, null, 2));
       
-      // Create booking via API
-      const response = await axios.post('/api/bookings/admin', bookingData, {
+      // Get the API base URL using our utility function
+      const apiBaseUrl = getApiBaseUrl();
+      
+      // Create booking via API with full URL
+      const response = await axios.post(`${apiBaseUrl}/api/bookings/admin`, bookingData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -431,10 +442,14 @@ const AdminTimeslotView = () => {
           
           console.log('Refreshing timeslots for date:', dateStr);
           
+          // Get the API base URL using our utility function
+          const apiBaseUrl = getApiBaseUrl();
+          
           // First, make a direct API call to get the latest timeslot data
-          const refreshResponse = await axios.get(`/api/bookings/admin-timeslots?date=${dateStr}&_=${timestamp}`, {
+          const refreshResponse = await axios.get(`${apiBaseUrl}/api/bookings/admin-timeslots?date=${dateStr}&_=${timestamp}`, {
             headers: {
-              'Authorization': `Bearer ${token}`
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
             }
           });
           
@@ -535,15 +550,19 @@ const AdminTimeslotView = () => {
         timeslotKey: `${timeslot.startTime}-${timeslot.endTime}`
       });
       
-      // Fetch bookings for this timeslot and date
-      const response = await axios.get('/api/bookings/timeslot', {
+      // Get the API base URL using our utility function
+      const apiBaseUrl = getApiBaseUrl();
+      
+      // Fetch bookings for this timeslot and date with full URL
+      const response = await axios.get(`${apiBaseUrl}/api/bookings/timeslot`, {
         params: {
           date: requestDate,
           startTime: timeslot.startTime,
           endTime: timeslot.endTime
         },
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
       
