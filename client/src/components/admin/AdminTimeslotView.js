@@ -526,10 +526,19 @@ const AdminTimeslotView = () => {
         throw new Error(t('auth_error', 'Autentimise viga'));
       }
       
+      // Log the request parameters for debugging
+      const requestDate = format(selectedDate, 'yyyy-MM-dd');
+      console.log('Fetching bookings with params:', {
+        date: requestDate,
+        startTime: timeslot.startTime,
+        endTime: timeslot.endTime,
+        timeslotKey: `${timeslot.startTime}-${timeslot.endTime}`
+      });
+      
       // Fetch bookings for this timeslot and date
       const response = await axios.get('/api/bookings/timeslot', {
         params: {
-          date: format(selectedDate, 'yyyy-MM-dd'),
+          date: requestDate,
           startTime: timeslot.startTime,
           endTime: timeslot.endTime
         },
@@ -539,57 +548,93 @@ const AdminTimeslotView = () => {
       });
       
       console.log('Timeslot bookings response:', response.data);
+      console.log('Response data type:', typeof response.data);
+      console.log('Is array:', Array.isArray(response.data));
+      console.log('Response data length:', Array.isArray(response.data) ? response.data.length : 'N/A');
       
       // Check if the response data has the expected structure
       if (response.data && Array.isArray(response.data)) {
         // Process each booking to ensure it has the correct structure for display
         const processedBookings = response.data.map(booking => {
-          console.log(`Processing booking:`, booking._id);
+          console.log(`Processing booking:`, booking._id || booking.id);
+          
+          // Create a deep copy to avoid modifying the original data
+          const processedBooking = JSON.parse(JSON.stringify(booking));
           
           // Ensure each booking has a timeslots array
-          if (!booking.timeslots || !Array.isArray(booking.timeslots) || booking.timeslots.length === 0) {
-            console.log(`No timeslots found, using selectedTimeslots:`, booking.selectedTimeslots);
+          if (!processedBooking.timeslots || !Array.isArray(processedBooking.timeslots) || processedBooking.timeslots.length === 0) {
+            console.log(`No timeslots found, using selectedTimeslots:`, processedBooking.selectedTimeslots);
             // If no timeslots, use selectedTimeslots if available
-            if (booking.selectedTimeslots && Array.isArray(booking.selectedTimeslots) && booking.selectedTimeslots.length > 0) {
-              booking.timeslots = booking.selectedTimeslots;
+            if (processedBooking.selectedTimeslots && Array.isArray(processedBooking.selectedTimeslots) && processedBooking.selectedTimeslots.length > 0) {
+              processedBooking.timeslots = processedBooking.selectedTimeslots;
             } else {
-              booking.timeslots = [];
+              processedBooking.timeslots = [];
             }
           }
           
+          // Ensure selectedTimeslots array exists
+          if (!processedBooking.selectedTimeslots || !Array.isArray(processedBooking.selectedTimeslots)) {
+            processedBooking.selectedTimeslots = [...processedBooking.timeslots];
+          }
+          
+          // Ensure timeslotKartSelections exists
+          if (!processedBooking.timeslotKartSelections) {
+            processedBooking.timeslotKartSelections = {};
+          }
+          
+          // Ensure timeslotKartQuantities exists
+          if (!processedBooking.timeslotKartQuantities) {
+            processedBooking.timeslotKartQuantities = {};
+          }
+          
           // Process each timeslot to ensure it has karts
-          booking.timeslots = booking.timeslots.map(ts => {
+          processedBooking.timeslots = processedBooking.timeslots.map(ts => {
+            // Create a deep copy of the timeslot
+            const processedTs = {...ts};
+            
             // If timeslot doesn't have karts, try to get them from timeslotKartSelections
-            if (!ts.karts || !Array.isArray(ts.karts) || ts.karts.length === 0) {
-              const timeslotKey = `${ts.startTime}-${ts.endTime}`;
-              const kartSelections = booking.timeslotKartSelections?.[timeslotKey] || [];
-              const kartQuantities = booking.timeslotKartQuantities?.[timeslotKey] || {};
+            if (!processedTs.karts || !Array.isArray(processedTs.karts) || processedTs.karts.length === 0) {
+              const timeslotKey = `${processedTs.startTime}-${processedTs.endTime}`;
+              console.log(`Timeslot ${timeslotKey} has no karts, looking for alternatives`);
+              
+              // Check timeslotKartSelections
+              const kartSelections = processedBooking.timeslotKartSelections[timeslotKey] || [];
+              const kartQuantities = processedBooking.timeslotKartQuantities[timeslotKey] || {};
               
               // Create karts array from kartSelections
               if (kartSelections.length > 0) {
-                ts.karts = kartSelections.map(kartId => {
-                  const kart = booking.kartSelections?.find(k => k.kartId === kartId);
+                console.log(`Found ${kartSelections.length} karts in timeslotKartSelections for ${timeslotKey}`);
+                processedTs.karts = kartSelections.map(kartId => {
+                  const kart = processedBooking.kartSelections?.find(k => k.kartId === kartId);
                   return {
                     kartId,
                     name: kart?.name || 'Unknown Kart',
                     quantity: kartQuantities[kartId] || kart?.quantity || 1
                   };
                 });
-              } else if (booking.kartSelections && booking.kartSelections.length > 0) {
+              } else if (processedBooking.kartSelections && processedBooking.kartSelections.length > 0) {
                 // Fallback to overall kartSelections
-                ts.karts = booking.kartSelections.map(kart => ({
+                console.log(`Using ${processedBooking.kartSelections.length} karts from overall kartSelections`);
+                processedTs.karts = processedBooking.kartSelections.map(kart => ({
                   kartId: kart.kartId,
                   name: kart.name || 'Unknown Kart',
                   quantity: kart.quantity || 1
                 }));
               } else {
-                ts.karts = [];
+                console.log(`No karts found for timeslot ${timeslotKey}`);
+                processedTs.karts = [];
               }
+            } else {
+              console.log(`Timeslot ${processedTs.startTime}-${processedTs.endTime} already has ${processedTs.karts.length} karts`);
             }
-            return ts;
+            return processedTs;
           });
           
-          return booking;
+          // Ensure selectedTimeslots has the same kart data
+          processedBooking.selectedTimeslots = [...processedBooking.timeslots];
+          
+          console.log(`Processed booking ${processedBooking._id || processedBooking.id} has ${processedBooking.timeslots.length} timeslots with karts`);
+          return processedBooking;
         });
         
         // Update the timeslot bookings with the processed data
