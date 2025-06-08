@@ -494,6 +494,10 @@ const AdminTimeslotView = () => {
         onSubmit={handleClientDataSubmit}
         clientData={clientData}
         loading={bookingLoading}
+        selectedTimeslots={selectedTimeslots}
+        timeslotKartSelections={timeslotKartSelections}
+        timeslotKartQuantities={timeslotKartQuantities}
+        karts={karts}
       />
       
       {/* Bookings dialog */}
