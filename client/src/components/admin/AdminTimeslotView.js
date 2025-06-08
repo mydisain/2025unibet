@@ -491,7 +491,7 @@ const AdminTimeslotView = () => {
       <AdminClientDataDialog
         open={clientDialogOpen}
         onClose={handleClientDialogClose}
-        onSubmit={handleClientDataSubmit}
+        onConfirm={handleClientDataSubmit}
         clientData={clientData}
         loading={bookingLoading}
         selectedTimeslots={selectedTimeslots}
