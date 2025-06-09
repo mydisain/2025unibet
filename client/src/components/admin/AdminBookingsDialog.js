@@ -38,24 +38,36 @@ const AdminBookingsDialog = ({
   const groupBookingsByClient = (bookings) => {
     const groupedBookings = {};
     
+    // Ensure bookings is an array before calling forEach
+    if (!Array.isArray(bookings)) {
+      console.error('Expected bookings to be an array, got:', typeof bookings, bookings);
+      return [];
+    }
+    
     bookings.forEach(booking => {
+      // Ensure booking object has necessary properties
+      if (!booking || typeof booking !== 'object') {
+        console.warn('Invalid booking object:', booking);
+        return;
+      }
+      
       // Create a unique key for each client
-      const clientKey = `${booking.customerEmail}-${booking.customerPhone}`;
+      const clientKey = `${booking.customerEmail || 'unknown'}-${booking.customerPhone || 'unknown'}`;
       
       if (!groupedBookings[clientKey]) {
         groupedBookings[clientKey] = {
-          customerName: booking.customerName,
-          customerEmail: booking.customerEmail,
-          customerPhone: booking.customerPhone,
-          notes: booking.notes,
-          bookingIds: [booking._id],
-          allTimeslots: [...booking.timeslots]
+          customerName: booking.customerName || 'Unknown Customer',
+          customerEmail: booking.customerEmail || '',
+          customerPhone: booking.customerPhone || '',
+          notes: booking.notes || '',
+          bookingIds: [booking._id || ''],
+          allTimeslots: Array.isArray(booking.timeslots) ? [...booking.timeslots] : []
         };
       } else {
-        groupedBookings[clientKey].bookingIds.push(booking._id);
+        groupedBookings[clientKey].bookingIds.push(booking._id || '');
         groupedBookings[clientKey].allTimeslots = [
           ...groupedBookings[clientKey].allTimeslots,
-          ...booking.timeslots
+          ...(Array.isArray(booking.timeslots) ? booking.timeslots : [])
         ];
       }
     });
@@ -64,7 +76,13 @@ const AdminBookingsDialog = ({
   };
 
   // Get all client bookings grouped by client
-  const clientBookings = timeslotBookings.length > 0 ? groupBookingsByClient(timeslotBookings) : [];
+  const clientBookings = Array.isArray(timeslotBookings) && timeslotBookings.length > 0 
+    ? groupBookingsByClient(timeslotBookings) 
+    : [];
+  
+  // For debugging
+  console.log('timeslotBookings:', timeslotBookings);
+  console.log('clientBookings:', clientBookings);
 
   return (
     <Dialog
