@@ -24,6 +24,7 @@ import { format, addDays } from 'date-fns';
 import { et } from 'date-fns/locale';
 import TextField from '@mui/material/TextField';
 import axios from 'axios';
+import axiosInstance from '../../utils/axiosConfig';
 
 // Import actions
 import { getAvailableTimeslots } from '../../redux/slices/bookingSlice';
@@ -420,36 +421,23 @@ const AdminTimeslotView = () => {
     setBookingsError(null);
     
     try {
-      // Get the token from userInfo in localStorage
-      const userInfoString = localStorage.getItem('userInfo');
-      if (!userInfoString) {
-        throw new Error(t('not_authenticated', 'Kasutaja pole sisse logitud'));
-      }
-      
-      let token;
-      try {
-        const userInfo = JSON.parse(userInfoString);
-        if (!userInfo || !userInfo.token) {
-          throw new Error(t('invalid_token', 'Vigane autentimistoken'));
-        }
-        token = userInfo.token;
-      } catch (error) {
-        console.error('Error parsing userInfo from localStorage:', error);
-        throw new Error(t('auth_error', 'Autentimise viga'));
-      }
-      
       // Fetch bookings for this timeslot and date
-      const response = await axios.get('/api/bookings/timeslot', {
+      console.log('Fetching bookings for:', {
+        date: format(selectedDate, 'yyyy-MM-dd'),
+        startTime: timeslot.startTime,
+        endTime: timeslot.endTime
+      });
+      
+      const response = await axiosInstance.get('/api/bookings/timeslot', {
         params: {
           date: format(selectedDate, 'yyyy-MM-dd'),
           startTime: timeslot.startTime,
           endTime: timeslot.endTime
-        },
-        headers: {
-          'Authorization': `Bearer ${token}`
         }
+        // Note: axiosInstance already adds Authorization header from interceptor
       });
       
+      console.log('Received bookings response:', response.data);
       setTimeslotBookings(response.data);
     } catch (error) {
       console.error('Error fetching timeslot bookings:', error);
