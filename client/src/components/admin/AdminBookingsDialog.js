@@ -44,6 +44,8 @@ const AdminBookingsDialog = ({
       return [];
     }
     
+    console.log('Received bookings data:', bookings);
+    
     bookings.forEach(booking => {
       // Ensure booking object has necessary properties
       if (!booking || typeof booking !== 'object') {
@@ -54,6 +56,16 @@ const AdminBookingsDialog = ({
       // Create a unique key for each client
       const clientKey = `${booking.customerEmail || 'unknown'}-${booking.customerPhone || 'unknown'}`;
       
+      // Ensure timeslots array exists
+      const timeslots = Array.isArray(booking.timeslots) ? booking.timeslots : [];
+      
+      // Log what we're processing
+      console.log('Processing booking:', {
+        id: booking._id,
+        customerName: booking.customerName,
+        timeslotsCount: timeslots.length
+      });
+      
       if (!groupedBookings[clientKey]) {
         groupedBookings[clientKey] = {
           customerName: booking.customerName || 'Unknown Customer',
@@ -61,13 +73,13 @@ const AdminBookingsDialog = ({
           customerPhone: booking.customerPhone || '',
           notes: booking.notes || '',
           bookingIds: [booking._id || ''],
-          allTimeslots: Array.isArray(booking.timeslots) ? [...booking.timeslots] : []
+          allTimeslots: [...timeslots]
         };
       } else {
         groupedBookings[clientKey].bookingIds.push(booking._id || '');
         groupedBookings[clientKey].allTimeslots = [
           ...groupedBookings[clientKey].allTimeslots,
-          ...(Array.isArray(booking.timeslots) ? booking.timeslots : [])
+          ...timeslots
         ];
       }
     });
@@ -75,14 +87,15 @@ const AdminBookingsDialog = ({
     return Object.values(groupedBookings);
   };
 
+  // For debugging
+  console.log('Raw timeslotBookings data:', timeslotBookings);
+  
   // Get all client bookings grouped by client
   const clientBookings = Array.isArray(timeslotBookings) && timeslotBookings.length > 0 
     ? groupBookingsByClient(timeslotBookings) 
     : [];
   
-  // For debugging
-  console.log('timeslotBookings:', timeslotBookings);
-  console.log('clientBookings:', clientBookings);
+  console.log('Processed clientBookings:', clientBookings);
 
   return (
     <Dialog
@@ -149,63 +162,74 @@ const AdminBookingsDialog = ({
                   
                   <List>
                     {client.allTimeslots && client.allTimeslots.length > 0 ? (
-                      client.allTimeslots.map((ts, tsIndex) => (
-                        <ListItem 
-                          key={tsIndex} 
-                          sx={{ 
-                            mb: 1, 
-                            p: 2, 
-                            backgroundColor: selectedTimeslot && ts.startTime === selectedTimeslot.startTime ? '#e3f2fd' : '#f5f5f5',
-                            borderRadius: 1,
-                            display: 'block'
-                          }}
-                        >
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                            <Typography variant="subtitle1" fontWeight="bold">
-                              {formatTimeslot(ts.startTime, ts.endTime)}
-                            </Typography>
-                            <Chip 
-                              size="small" 
-                              label={t('ride', 'Sõit') + ' ' + (tsIndex + 1)}
-                              color="primary" 
-                              variant="outlined"
-                            />
-                          </Box>
-                          
-                          {ts.karts && ts.karts.length > 0 ? (
-                            <Box sx={{ mt: 1 }}>
-                              <Typography variant="body2" fontWeight="bold" sx={{ mb: 0.5 }}>
-                                {t('selected_karts', 'Valitud kardid')}:
+                      client.allTimeslots.map((ts, tsIndex) => {
+                        // Skip rendering if timeslot data is incomplete
+                        if (!ts || !ts.startTime || !ts.endTime) {
+                          console.warn('Skipping incomplete timeslot data:', ts);
+                          return null;
+                        }
+                        
+                        return (
+                          <ListItem 
+                            key={tsIndex} 
+                            sx={{ 
+                              mb: 1, 
+                              p: 2, 
+                              backgroundColor: selectedTimeslot && ts.startTime === selectedTimeslot.startTime ? '#e3f2fd' : '#f5f5f5',
+                              borderRadius: 1,
+                              display: 'block'
+                            }}
+                          >
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                              <Typography variant="subtitle1" fontWeight="bold">
+                                {formatTimeslot(ts.startTime, ts.endTime)}
                               </Typography>
-                              <Grid container spacing={1}>
-                                {ts.karts.map((kart, kartIndex) => (
-                                  <Grid item xs={12} sm={6} key={kartIndex}>
-                                    <Paper 
-                                      sx={{ 
-                                        p: 1, 
-                                        display: 'flex', 
-                                        justifyContent: 'space-between',
-                                        backgroundColor: kart.quantity > 1 ? '#e8f5e9' : '#fff'
-                                      }}
-                                    >
-                                      <Typography variant="body2">
-                                        {kart.name}
-                                      </Typography>
-                                      <Typography variant="body2" fontWeight="bold">
-                                        {kart.quantity} {t('units', 'tk')}
-                                      </Typography>
-                                    </Paper>
-                                  </Grid>
-                                ))}
-                              </Grid>
+                              <Chip 
+                                size="small" 
+                                label={t('ride', 'Sõit') + ' ' + (tsIndex + 1)}
+                                color="primary" 
+                                variant="outlined"
+                              />
                             </Box>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">
-                              {t('no_karts_selected', 'Karte pole valitud')}
-                            </Typography>
-                          )}
-                        </ListItem>
-                      ))
+                            
+                            {ts.karts && Array.isArray(ts.karts) && ts.karts.length > 0 ? (
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="body2" fontWeight="bold" sx={{ mb: 0.5 }}>
+                                  {t('selected_karts', 'Valitud kardid')}:
+                                </Typography>
+                                <Grid container spacing={1}>
+                                  {ts.karts.map((kart, kartIndex) => {
+                                    if (!kart) return null;
+                                    return (
+                                      <Grid item xs={12} sm={6} key={kartIndex}>
+                                        <Paper 
+                                          sx={{ 
+                                            p: 1, 
+                                            display: 'flex', 
+                                            justifyContent: 'space-between',
+                                            backgroundColor: kart.quantity > 1 ? '#e8f5e9' : '#fff'
+                                          }}
+                                        >
+                                          <Typography variant="body2">
+                                            {kart.name || 'Unknown Kart'}
+                                          </Typography>
+                                          <Typography variant="body2" fontWeight="bold">
+                                            {kart.quantity || 1} {t('units', 'tk')}
+                                          </Typography>
+                                        </Paper>
+                                      </Grid>
+                                    );
+                                  })}
+                                </Grid>
+                              </Box>
+                            ) : (
+                              <Typography variant="body2" color="text.secondary">
+                                {t('no_karts_selected', 'Karte pole valitud')}
+                              </Typography>
+                            )}
+                          </ListItem>
+                        );
+                      }).filter(item => item !== null)  // Filter out any null items
                     ) : (
                       <Typography variant="body2" color="text.secondary">
                         {t('no_timeslots_found', 'Ajavahemikke ei leitud')}

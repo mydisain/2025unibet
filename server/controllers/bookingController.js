@@ -942,14 +942,30 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       }
       
       // Check in timeslotKartSelections for the specific timeslot
-      // This handles bookings that store timeslot information in the map
+      // This handles bookings that store timeslot information in the map or as an object
       const timeslotKey = `${startTime}-${endTime}`;
-      if (booking.timeslotKartSelections && booking.timeslotKartSelections.get(timeslotKey)) {
-        if (!bookingsForTimeslot.some(b => b._id.toString() === booking._id.toString())) {
-          console.log(`Found booking match via timeslotKartSelections: ${booking._id}`);
-          bookingsForTimeslot.push(booking);
+      if (booking.timeslotKartSelections) {
+        // Handle both Map objects and regular JSON objects
+        const hasTimeslot = typeof booking.timeslotKartSelections.get === 'function' 
+          ? booking.timeslotKartSelections.get(timeslotKey)
+          : booking.timeslotKartSelections[timeslotKey];
+          
+        if (hasTimeslot) {
+          if (!bookingsForTimeslot.some(b => b._id.toString() === booking._id.toString())) {
+            console.log(`Found booking match via timeslotKartSelections: ${booking._id}`);
+            bookingsForTimeslot.push(booking);
+          }
         }
       }
+      
+      // Add extra debugging
+      console.log('Booking timeslots data structure:', JSON.stringify({
+        id: booking._id,
+        selectedTimeslots: booking.selectedTimeslots || [],
+        timeslotKartSelectionsType: booking.timeslotKartSelections ? typeof booking.timeslotKartSelections : 'undefined',
+        startTime: booking.startTime,
+        endTime: booking.endTime
+      }));
     }
     
     console.log(`Found ${bookingsForTimeslot.length} bookings for timeslot ${startTime}-${endTime}`);
@@ -957,7 +973,26 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
     // For each booking, populate with kart information
     const populatedBookings = await Promise.all(bookingsForTimeslot.map(async (booking) => {
       // Create a new object with all booking fields
-      const bookingObj = booking.toObject();
+      const bookingObj = booking.toObject ? booking.toObject() : {...booking};
+      
+      // Extract timeslot information for this specific timeslot
+      const timeslotKey = `${startTime}-${endTime}`;
+      let timeslots = [];
+      
+      // Check if this booking has the specific timeslot in selectedTimeslots
+      if (bookingObj.selectedTimeslots && bookingObj.selectedTimeslots.length > 0) {
+        const matchingTimeslots = bookingObj.selectedTimeslots.filter(ts => 
+          typeof ts === 'object' && ts.startTime === startTime && ts.endTime === endTime
+        );
+        
+        if (matchingTimeslots.length > 0) {
+          timeslots = matchingTimeslots.map(ts => ({
+            startTime: ts.startTime,
+            endTime: ts.endTime,
+            karts: []
+          }));
+        }
+      }
       
       // For backwards compatibility, populate kartSelections
       if (bookingObj.kartSelections && bookingObj.kartSelections.length > 0) {
@@ -980,21 +1015,87 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       }
       
       // Create a simplified structure for the client
+      // Extract timeslot-specific kart information
+      let timeslotKarts = [];
+      const tsKey = `${startTime}-${endTime}`;
+      
+      // Handle timeslotKartSelections and timeslotKartQuantities
+      if (bookingObj.timeslotKartSelections) {
+        // Handle as either Map or object
+        const kartIds = typeof bookingObj.timeslotKartSelections.get === 'function'
+          ? bookingObj.timeslotKartSelections.get(tsKey) 
+          : bookingObj.timeslotKartSelections[tsKey];
+          
+        const quantities = bookingObj.timeslotKartQuantities && 
+          (typeof bookingObj.timeslotKartQuantities.get === 'function'
+            ? bookingObj.timeslotKartQuantities.get(tsKey)
+            : bookingObj.timeslotKartQuantities[tsKey]);
+            
+        if (Array.isArray(kartIds) && kartIds.length > 0) {
+          // If we have both kartIds and quantities for this timeslot
+          timeslotKarts = await Promise.all(kartIds.map(async (kartId) => {
+            const kart = await Kart.findById(kartId);
+            const quantity = quantities ? quantities[kartId] || 1 : 1;
+            
+            return {
+              kartId,
+              name: kart ? kart.name : 'Unknown Kart',
+              quantity: quantity
+            };
+          }));
+        }
+      }
+      
+      // Add timeslot information
+      let bookingTimeslots = [];
+      
+      // Option 1: From selectedTimeslots array
+      if (bookingObj.selectedTimeslots && bookingObj.selectedTimeslots.length > 0) {
+        const relevantTimeslots = bookingObj.selectedTimeslots.filter(ts => 
+          typeof ts === 'object' && ts.startTime === startTime && ts.endTime === endTime
+        );
+        
+        if (relevantTimeslots.length > 0) {
+          bookingTimeslots = [{
+            startTime,
+            endTime,
+            karts: timeslotKarts.length > 0 ? timeslotKarts : bookingObj.kartSelections || []
+          }];
+        }
+      } 
+      // Option 2: From main booking fields
+      else if (bookingObj.startTime === startTime && bookingObj.endTime === endTime) {
+        bookingTimeslots = [{
+          startTime: bookingObj.startTime,
+          endTime: bookingObj.endTime,
+          karts: timeslotKarts.length > 0 ? timeslotKarts : bookingObj.kartSelections || []
+        }];
+      }
+      // Option 3: If we found timeslot-specific karts but no explicit timeslot match
+      else if (timeslotKarts.length > 0) {
+        bookingTimeslots = [{
+          startTime,
+          endTime,
+          karts: timeslotKarts
+        }];
+      }
+      
+      console.log(`Returning booking with ${bookingTimeslots.length} timeslots and ${timeslotKarts.length} karts for timeslot`);
+      
       return {
         _id: bookingObj._id,
         customerName: bookingObj.customerName,
         customerEmail: bookingObj.customerEmail,
         customerPhone: bookingObj.customerPhone,
         date: bookingObj.date,
-        startTime: bookingObj.startTime,
-        endTime: bookingObj.endTime,
-        status: bookingObj.status,
         notes: bookingObj.notes,
         createdAt: bookingObj.createdAt,
-        kartSelections: bookingObj.kartSelections || [],
+        status: bookingObj.status,
         totalPrice: bookingObj.totalPrice || 0,
         // Include whether this is an admin booking for UI differentiation if needed
-        isAdminBooking: bookingObj.customerName === 'Admin Booking' || bookingObj.customerEmail === 'admin@bookid.ee'
+        isAdminBooking: bookingObj.customerName === 'Admin Booking' || bookingObj.customerEmail === 'admin@bookid.ee',
+        // Add the timeslots that match the requested timeslot
+        timeslots: bookingTimeslots
       };
     }));
     
