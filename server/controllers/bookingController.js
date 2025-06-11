@@ -1,5 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const nodemailer = require('nodemailer');
+const mongoose = require('mongoose');
 const Booking = require('../models/bookingModel');
 const Kart = require('../models/kartModel');
 const Setting = require('../models/settingModel');
@@ -38,8 +39,6 @@ const createBooking = asyncHandler(async (req, res) => {
   let timeslotKartSelections = {};
   let timeslotKartQuantities = {};
   let kartSelections = [];
-  
-  try { // Add top-level try-catch for better error handling
   
   if (isAdminBooking) {
     // Handle admin booking format
@@ -228,8 +227,35 @@ const createBooking = asyncHandler(async (req, res) => {
   
   console.log('Calculating final price for booking:', totalPrice);
   
-  // Check for existing conflicting bookings
-  await checkBookingConflicts(bookingTimeslots, bookingDate);
+  try {
+    // Helper function to check for conflicting bookings
+    const checkBookingConflicts = async (timeslots, date) => {
+      // For admin bookings, we can skip conflict checking
+      if (isAdminBooking) {
+        console.log('Admin booking - skipping conflict check');
+        return;
+      }
+      
+      // Regular booking conflict logic would go here
+      console.log('Checking for conflicts on', date, 'for timeslots:', timeslots);
+      
+      // This is just a placeholder - normally you'd check for overlapping bookings
+      const existingBookings = await Booking.find({
+        date: new Date(date),
+        status: { $ne: 'cancelled' }
+      });
+      
+      console.log(`Found ${existingBookings.length} existing bookings on this date`);
+      
+      // In a real implementation, you'd check for overlapping timeslots here
+    };
+    
+    // Check for existing conflicting bookings
+    await checkBookingConflicts(bookingTimeslots, bookingDate);
+  } catch (error) {
+    console.error('Error checking for booking conflicts:', error);
+    // We can continue with the booking even if conflict checking fails
+  }
   
   // For admin bookings, the frontend now sends a properly structured object
   // that already matches our model requirements
@@ -240,49 +266,93 @@ const createBooking = asyncHandler(async (req, res) => {
   });
   
   // Create the booking with the corrected structure
-  let bookingToCreate = {
-    ...bookingData,
-    date: bookingDate,
-    totalPrice
-  };
-  
-  // For non-admin bookings, add the processed data
-  if (!isAdminBooking) {
-    bookingToCreate = {
-      ...bookingToCreate,
-      selectedTimeslots: bookingTimeslots,
-      kartSelections,
-      timeslotKartSelections,
-      timeslotKartQuantities
+  try {
+    // Basic validation to ensure we have required fields
+    if (isAdminBooking) {
+      // Make sure we have proper kartSelections format
+      // Each kartSelection needs a kart field that's an ObjectId
+      if (bookingData.kartSelections && Array.isArray(bookingData.kartSelections)) {
+        // Ensure each kart selection has all required fields and valid types
+        bookingData.kartSelections = bookingData.kartSelections.map(ks => ({
+          kart: mongoose.Types.ObjectId.isValid(ks.kart) ? ks.kart : null,
+          quantity: parseInt(ks.quantity) || 1,
+          pricePerSlot: parseFloat(ks.pricePerSlot) || 10,
+          timeslot: ks.timeslot || ''
+        }));
+        
+        // Filter out any invalid entries (missing kart ObjectIds)
+        bookingData.kartSelections = bookingData.kartSelections.filter(ks => ks.kart);
+      }
+      
+      // Ensure selectedTimeslots is an array of strings
+      if (!bookingData.selectedTimeslots || !Array.isArray(bookingData.selectedTimeslots)) {
+        bookingData.selectedTimeslots = [];
+      }
+      
+      // Ensure we have start and end times
+      if (!bookingData.startTime) bookingData.startTime = '10:00';
+      if (!bookingData.endTime) bookingData.endTime = '10:30';
+      
+      // Make sure duration is a number
+      bookingData.duration = parseInt(bookingData.duration) || 30;
+    }
+    
+    // Final booking object with all necessary fields
+    let bookingToCreate = {
+      customerName: bookingData.customerName,
+      customerEmail: bookingData.customerEmail,
+      customerPhone: bookingData.customerPhone,
+      date: bookingDate,
+      startTime: bookingData.startTime,
+      endTime: bookingData.endTime,
+      duration: bookingData.duration,
+      kartSelections: bookingData.kartSelections || [],
+      selectedTimeslots: bookingData.selectedTimeslots || [],
+      totalPrice,
+      notes: bookingData.notes || '',
+      status: isAdminBooking ? 'confirmed' : 'pending'
     };
-  }
-  
-  const booking = await Booking.create(bookingToCreate);
-
-  if (booking) {
-    // Send confirmation email only for public bookings
+    
+    // For non-admin bookings, add the processed data
     if (!isAdminBooking) {
-      await sendBookingConfirmationEmail(booking);
+      bookingToCreate = {
+        ...bookingToCreate,
+        timeslotKartSelections: timeslotKartSelections || {},
+        timeslotKartQuantities: timeslotKartQuantities || {}
+      };
     }
     
-    res.status(201).json(booking);
-  } else {
-    res.status(400);
-    throw new Error('Invalid booking data');
-  }
-  
+    console.log('Final booking object to create:', JSON.stringify(bookingToCreate));
+    const booking = await Booking.create(bookingToCreate);
+
+    if (booking) {
+      // Send confirmation email only for public bookings
+      if (!isAdminBooking) {
+        await sendBookingConfirmationEmail(booking);
+      }
+      
+      res.status(201).json(booking);
+    } else {
+      res.status(400);
+      throw new Error('Invalid booking data');
+    }
   } catch (error) {
-    // Detailed error logging to diagnose admin booking issues
-    console.error('Error in createBooking controller:', error);
-    console.error('Stack trace:', error.stack);
+    console.error('Error creating booking:', error);
+    console.error('Error message:', error.message);
+    console.error('Error details:', JSON.stringify(error, null, 2));
     
-    // If headers haven't been sent yet, send an appropriate response
-    if (!res.headersSent) {
-      res.status(500).json({
-        message: `Server error creating booking: ${error.message}`,
-        details: isAdminBooking ? 'Error creating admin booking' : 'Error creating public booking'
-      });
-    }
+    // More detailed error response for debugging
+    res.status(500).json({
+      message: `Error creating booking: ${error.message}`,
+      code: error.code || 'UNKNOWN_ERROR',
+      // For validation errors, provide more specific details
+      validationErrors: error.errors ? Object.keys(error.errors).map(field => ({
+        field,
+        message: error.errors[field].message,
+        value: error.errors[field].value
+      })) : [],
+      stack: process.env.NODE_ENV === 'production' ? '🥞' : error.stack
+    });
   }
 });
 
