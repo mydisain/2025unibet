@@ -44,7 +44,7 @@ const AdminBookingsDialog = ({
       return [];
     }
     
-    console.log('Received bookings data:', bookings);
+    console.log('Received bookings data:', JSON.stringify(bookings));
     
     bookings.forEach(booking => {
       // Ensure booking object has necessary properties
@@ -56,14 +56,32 @@ const AdminBookingsDialog = ({
       // Create a unique key for each client
       const clientKey = `${booking.customerEmail || 'unknown'}-${booking.customerPhone || 'unknown'}`;
       
-      // Ensure timeslots array exists
-      const timeslots = Array.isArray(booking.timeslots) ? booking.timeslots : [];
+      // Handle timeslots - always ensure we have at least one timeslot with the current timeslot data
+      // This prevents the "no timeslots found" message
+      let timeslots = [];
+      
+      // If booking has timeslots array, use it
+      if (Array.isArray(booking.timeslots) && booking.timeslots.length > 0) {
+        timeslots = booking.timeslots;
+      } 
+      // If no timeslots but we have startTime/endTime, create a timeslot
+      else if (booking.startTime && booking.endTime) {
+        timeslots = [{
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          karts: Array.isArray(booking.kartSelections) ? booking.kartSelections : []
+        }];
+      }
       
       // Log what we're processing
       console.log('Processing booking:', {
         id: booking._id,
         customerName: booking.customerName,
-        timeslotsCount: timeslots.length
+        timeslotsCount: timeslots.length,
+        hasKarts: timeslots.length > 0 && 
+                  timeslots[0].karts && 
+                  Array.isArray(timeslots[0].karts) && 
+                  timeslots[0].karts.length > 0
       });
       
       if (!groupedBookings[clientKey]) {
@@ -73,7 +91,7 @@ const AdminBookingsDialog = ({
           customerPhone: booking.customerPhone || '',
           notes: booking.notes || '',
           bookingIds: [booking._id || ''],
-          allTimeslots: [...timeslots]
+          allTimeslots: timeslots
         };
       } else {
         groupedBookings[clientKey].bookingIds.push(booking._id || '');
@@ -84,7 +102,11 @@ const AdminBookingsDialog = ({
       }
     });
     
-    return Object.values(groupedBookings);
+    // Additional logging to verify the processed data
+    const result = Object.values(groupedBookings);
+    console.log('Grouped client bookings:', result);
+    
+    return result;
   };
 
   // For debugging
@@ -211,10 +233,10 @@ const AdminBookingsDialog = ({
                                           }}
                                         >
                                           <Typography variant="body2">
-                                            {kart.name || 'Unknown Kart'}
+                                            {kart.name || (kart.kartId ? `Kart ID: ${kart.kartId}` : 'Unknown Kart')}
                                           </Typography>
                                           <Typography variant="body2" fontWeight="bold">
-                                            {kart.quantity || 1} {t('units', 'tk')}
+                                            {typeof kart.quantity === 'number' ? kart.quantity : 1} {t('units', 'tk')}
                                           </Typography>
                                         </Paper>
                                       </Grid>

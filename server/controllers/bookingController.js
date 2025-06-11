@@ -964,7 +964,8 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
         selectedTimeslots: booking.selectedTimeslots || [],
         timeslotKartSelectionsType: booking.timeslotKartSelections ? typeof booking.timeslotKartSelections : 'undefined',
         startTime: booking.startTime,
-        endTime: booking.endTime
+        endTime: booking.endTime,
+        kartSelections: booking.kartSelections || []
       }));
     }
     
@@ -1049,6 +1050,14 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       // Add timeslot information
       let bookingTimeslots = [];
       
+      // ALWAYS include the requested timeslot with available kart data
+      // This ensures we at least have the timeslot shown in the UI
+      bookingTimeslots = [{
+        startTime: startTime,
+        endTime: endTime,
+        karts: []
+      }];
+      
       // Option 1: From selectedTimeslots array
       if (bookingObj.selectedTimeslots && bookingObj.selectedTimeslots.length > 0) {
         const relevantTimeslots = bookingObj.selectedTimeslots.filter(ts => 
@@ -1056,28 +1065,24 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
         );
         
         if (relevantTimeslots.length > 0) {
-          bookingTimeslots = [{
-            startTime,
-            endTime,
-            karts: timeslotKarts.length > 0 ? timeslotKarts : bookingObj.kartSelections || []
-          }];
+          // Update the default entry with kart data
+          bookingTimeslots[0].karts = timeslotKarts.length > 0 ? timeslotKarts : bookingObj.kartSelections || [];
         }
       } 
       // Option 2: From main booking fields
       else if (bookingObj.startTime === startTime && bookingObj.endTime === endTime) {
-        bookingTimeslots = [{
-          startTime: bookingObj.startTime,
-          endTime: bookingObj.endTime,
-          karts: timeslotKarts.length > 0 ? timeslotKarts : bookingObj.kartSelections || []
-        }];
+        // Update the default entry with kart data
+        bookingTimeslots[0].karts = timeslotKarts.length > 0 ? timeslotKarts : bookingObj.kartSelections || [];
       }
       // Option 3: If we found timeslot-specific karts but no explicit timeslot match
       else if (timeslotKarts.length > 0) {
-        bookingTimeslots = [{
-          startTime,
-          endTime,
-          karts: timeslotKarts
-        }];
+        // Update the default entry with kart data
+        bookingTimeslots[0].karts = timeslotKarts;
+      }
+      // Option 4: Fall back to kartSelections if nothing else matches
+      else if (bookingObj.kartSelections && bookingObj.kartSelections.length > 0) {
+        // Update the default entry with kart data
+        bookingTimeslots[0].karts = bookingObj.kartSelections;
       }
       
       console.log(`Returning booking with ${bookingTimeslots.length} timeslots and ${timeslotKarts.length} karts for timeslot`);
