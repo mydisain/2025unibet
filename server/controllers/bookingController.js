@@ -43,7 +43,7 @@ const createBooking = asyncHandler(async (req, res) => {
   if (isAdminBooking) {
     // Handle admin booking format
     console.log('Creating admin booking');
-    const { date, timeslots, customerName, customerEmail, customerPhone, notes } = req.body;
+    const { date, timeslots, customerName, customerEmail, customerPhone, notes, selectedTimeslots: reqSelectedTimeslots } = req.body;
     
     if (!date || !timeslots || !Array.isArray(timeslots) || timeslots.length === 0) {
       res.status(400);
@@ -60,7 +60,9 @@ const createBooking = asyncHandler(async (req, res) => {
       status: 'confirmed',
       duration: timeslots.length > 0 ? 
                 calculateDuration(timeslots[0].startTime, timeslots[0].endTime) : 
-                30 // default duration in minutes
+                30, // default duration in minutes
+      // Store the original timeslots array to ensure we keep it for later reference
+      timeslots: timeslots
     };
     
     console.log('Admin booking client data:', bookingData);
@@ -93,6 +95,9 @@ const createBooking = asyncHandler(async (req, res) => {
     if (bookingTimeslots.length === 0) {
       throw new Error('Invalid or missing timeslot format. Expected HH:MM format for startTime and endTime');
     }
+    
+    // Create selectedTimeslots array in string format (like '10:00-10:30')
+    bookingData.selectedTimeslots = bookingTimeslots.map(ts => `${ts.startTime}-${ts.endTime}`);
     
     // Process kart selections from admin format
     if (timeslots && timeslots.length > 0) {
@@ -127,6 +132,10 @@ const createBooking = asyncHandler(async (req, res) => {
         }
       });
     }
+    
+    // Store the timeslotKartSelections and quantities in the booking data
+    bookingData.timeslotKartSelections = timeslotKartSelections;
+    bookingData.timeslotKartQuantities = timeslotKartQuantities;
     
     console.log('Admin booking data processed:');
     console.log('Booking timeslots:', bookingTimeslots);
@@ -1126,21 +1135,33 @@ const getAdminTimeslots = asyncHandler(async (req, res) => {
     
     // Find bookings that overlap with this timeslot
     const overlappingBookings = bookings.filter(booking => {
-      // Format the current timeslot for comparison
-      const timeslotStr = `${startTime}-${addMinutesToTime(startTime, timeslotDuration)}`;
-      
-      // Check if this timeslot is in the booking's selectedTimeslots array
-      if (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) {
-        const isOverlapping = booking.selectedTimeslots.some(ts => {
-          const normalizedBookingTimeslot = normalizeTimeslot(ts);
-          const normalizedCurrentTimeslot = normalizeTimeslot(timeslotStr);
-          return normalizedBookingTimeslot === normalizedCurrentTimeslot;
-        });
-        
-        return isOverlapping;
+      if (booking.status === 'cancelled') {
+        return false;
       }
       
-      // Legacy fallback for bookings without selectedTimeslots
+      // First check: do any of the selectedTimeslots directly match this timeslot?
+      if (booking.selectedTimeslots && Array.isArray(booking.selectedTimeslots)) {
+        for (const bookingTimeslot of booking.selectedTimeslots) {
+          // Check for exact match
+          if (typeof bookingTimeslot === 'string') {
+            const [bookingStartTime, bookingEndTime] = bookingTimeslot.split('-');
+            if (bookingStartTime === startTime) {
+              return true;
+            }
+          }
+        }
+      }
+      
+      // Second check: for admin bookings that might be stored in different format
+      if (booking.timeslots && Array.isArray(booking.timeslots)) {
+        for (const ts of booking.timeslots) {
+          if (ts.startTime === startTime) {
+            return true;
+          }
+        }
+      }
+      
+      // Third check: does the booking startTime fall within this timeslot?
       return booking.startTime === startTime;
     });
     
