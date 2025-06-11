@@ -39,7 +39,26 @@ import AdminBookingsDialog from './AdminBookingsDialog';
 const AdminTimeslotView = () => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
-  
+
+  // Helper function to calculate duration between two time strings in minutes
+  const calculateDuration = (startTime, endTime) => {
+    // Parse times in format 'HH:mm'
+    const [startHours, startMinutes] = startTime.split(':').map(Number);
+    const [endHours, endMinutes] = endTime.split(':').map(Number);
+    
+    // Calculate total minutes for each time
+    const startTotalMinutes = startHours * 60 + startMinutes;
+    const endTotalMinutes = endHours * 60 + endMinutes;
+    
+    // Calculate duration (handle cases where endTime is on the next day)
+    let durationMinutes = endTotalMinutes - startTotalMinutes;
+    if (durationMinutes < 0) {
+      durationMinutes += 24 * 60; // Add 24 hours in minutes
+    }
+    
+    return durationMinutes;
+  };
+
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedTimeslots, setSelectedTimeslots] = useState([]);
   const [selectedKarts, setSelectedKarts] = useState([]);
@@ -298,7 +317,9 @@ const AdminTimeslotView = () => {
   
   // Handle client data submission and booking creation
   const handleClientDataSubmit = async (clientData) => {
-    // Prepare booking data
+    // Prepare booking data to match the expected model structure
+    const firstTimeslot = selectedTimeslots[0] || { startTime: '10:00', endTime: '10:30' };
+    
     const bookingData = {
       // Client data
       customerName: clientData.customerName,
@@ -306,8 +327,37 @@ const AdminTimeslotView = () => {
       customerPhone: clientData.customerPhone,
       notes: clientData.notes,
       
-      // Booking data
+      // Required booking fields according to schema
+      startTime: firstTimeslot.startTime,
+      endTime: firstTimeslot.endTime,
       date: format(selectedDate, 'yyyy-MM-dd'),
+      
+      // Convert selectedTimeslots to array of strings as required by model
+      selectedTimeslots: selectedTimeslots.map(ts => 
+        `${ts.startTime}-${ts.endTime}`
+      ),
+      
+      // Calculate duration in minutes based on first timeslot
+      duration: calculateDuration(firstTimeslot.startTime, firstTimeslot.endTime),
+      
+      // Create proper kartSelections with kart field (not kartId)
+      kartSelections: selectedTimeslots.flatMap(timeslot => {
+        const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
+        const timeslotKarts = timeslotKartSelections[timeslotKey] || [];
+        const timeslotQuantities = timeslotKartQuantities[timeslotKey] || {};
+        
+        return timeslotKarts.map(kartId => {
+          const kart = karts.find(k => k._id === kartId);
+          return {
+            kart: kartId, // This matches the schema which expects 'kart' not 'kartId'
+            quantity: timeslotQuantities[kartId] || 1,
+            pricePerSlot: kart?.pricePerSlot || 10,
+            timeslot: `${timeslot.startTime}-${timeslot.endTime}`
+          };
+        });
+      }),
+      
+      // Keep the original timeslots data for the backend
       timeslots: selectedTimeslots.map(timeslot => {
         const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
         const timeslotKarts = timeslotKartSelections[timeslotKey] || [];

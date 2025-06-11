@@ -225,24 +225,39 @@ const createBooking = asyncHandler(async (req, res) => {
       totalPrice = 10; // Default price on error
     }
   }
-
-  console.log('Creating booking with data:', {
-    customerName: bookingData.customerName,
-    date: bookingDate,
-    timeslotsCount: bookingTimeslots.length,
-    kartsCount: kartSelections.length,
-    totalPrice
-  });
-
-  const booking = await Booking.create({
+  
+  console.log('Calculating final price for booking:', totalPrice);
+  
+  // Check for existing conflicting bookings
+  await checkBookingConflicts(bookingTimeslots, bookingDate);
+  
+  // For admin bookings, the frontend now sends a properly structured object
+  // that already matches our model requirements
+  console.log('Final booking data to be saved:', {
     ...bookingData,
     date: bookingDate,
-    selectedTimeslots: bookingTimeslots,
-    kartSelections,
-    timeslotKartSelections,
-    timeslotKartQuantities,
     totalPrice
   });
+  
+  // Create the booking with the corrected structure
+  let bookingToCreate = {
+    ...bookingData,
+    date: bookingDate,
+    totalPrice
+  };
+  
+  // For non-admin bookings, add the processed data
+  if (!isAdminBooking) {
+    bookingToCreate = {
+      ...bookingToCreate,
+      selectedTimeslots: bookingTimeslots,
+      kartSelections,
+      timeslotKartSelections,
+      timeslotKartQuantities
+    };
+  }
+  
+  const booking = await Booking.create(bookingToCreate);
 
   if (booking) {
     // Send confirmation email only for public bookings
