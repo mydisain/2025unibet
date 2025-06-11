@@ -214,6 +214,8 @@ const AdminBookingsDialog = ({
                               />
                             </Box>
                             
+                            {/* Add more detailed logging about kart data */}
+                            {console.log('Timeslot kart data:', ts.karts)}
                             {ts.karts && Array.isArray(ts.karts) && ts.karts.length > 0 ? (
                               <Box sx={{ mt: 1 }}>
                                 <Typography variant="body2" fontWeight="bold" sx={{ mb: 0.5 }}>
@@ -245,9 +247,11 @@ const AdminBookingsDialog = ({
                                 </Grid>
                               </Box>
                             ) : (
-                              <Typography variant="body2" color="text.secondary">
-                                {t('no_karts_selected', 'Karte pole valitud')}
-                              </Typography>
+                              <Box sx={{ mt: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  {t('no_karts_selected', 'Karte pole valitud')}
+                                </Typography>
+                              </Box>
                             )}
                           </ListItem>
                         );

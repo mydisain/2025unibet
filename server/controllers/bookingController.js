@@ -1021,7 +1021,13 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       const tsKey = `${startTime}-${endTime}`;
       
       // Handle timeslotKartSelections and timeslotKartQuantities
+      console.log('Processing timeslotKartSelections for booking:', bookingObj._id);
       if (bookingObj.timeslotKartSelections) {
+        console.log('timeslotKartSelections type:', typeof bookingObj.timeslotKartSelections);
+        console.log('timeslotKartSelections keys:', 
+          typeof bookingObj.timeslotKartSelections === 'object' ? 
+            Object.keys(bookingObj.timeslotKartSelections) : 'not an object');
+        
         // Handle as either Map or object
         const kartIds = typeof bookingObj.timeslotKartSelections.get === 'function'
           ? bookingObj.timeslotKartSelections.get(tsKey) 
@@ -1031,12 +1037,17 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
           (typeof bookingObj.timeslotKartQuantities.get === 'function'
             ? bookingObj.timeslotKartQuantities.get(tsKey)
             : bookingObj.timeslotKartQuantities[tsKey]);
+        
+        console.log('kartIds:', kartIds);
+        console.log('quantities:', quantities);
             
         if (Array.isArray(kartIds) && kartIds.length > 0) {
           // If we have both kartIds and quantities for this timeslot
           timeslotKarts = await Promise.all(kartIds.map(async (kartId) => {
             const kart = await Kart.findById(kartId);
             const quantity = quantities ? quantities[kartId] || 1 : 1;
+            
+            console.log('Found kart for timeslot:', kart ? kart.name : 'Unknown', 'quantity:', quantity);
             
             return {
               kartId,
@@ -1045,6 +1056,16 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
             };
           }));
         }
+      }
+      
+      // If we don't have timeslotKarts, try to extract from kartSelections
+      if (timeslotKarts.length === 0 && bookingObj.kartSelections && bookingObj.kartSelections.length > 0) {
+        console.log('Using kartSelections as fallback');
+        timeslotKarts = bookingObj.kartSelections.map(k => ({
+          kartId: k.kartId || k.kart || k._id,
+          name: k.name || 'Unknown Kart',
+          quantity: k.quantity || 1
+        }));
       }
       
       // Add timeslot information
@@ -1082,10 +1103,26 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       // Option 4: Fall back to kartSelections if nothing else matches
       else if (bookingObj.kartSelections && bookingObj.kartSelections.length > 0) {
         // Update the default entry with kart data
-        bookingTimeslots[0].karts = bookingObj.kartSelections;
+        bookingTimeslots[0].karts = bookingObj.kartSelections.map(k => ({
+          kartId: k.kartId || k.kart || k._id,
+          name: k.name || 'Unknown Kart',
+          quantity: k.quantity || 1
+        }));
       }
       
       console.log(`Returning booking with ${bookingTimeslots.length} timeslots and ${timeslotKarts.length} karts for timeslot`);
+      console.log('Final timeslot karts data:', JSON.stringify(bookingTimeslots[0].karts));
+      
+      // Final sanity check - ensure we have kart data
+      // If we still don't have karts, add a placeholder kart to ensure something displays
+      if (!bookingTimeslots[0].karts || bookingTimeslots[0].karts.length === 0) {
+        console.log('No kart data found for this booking, adding placeholder');
+        bookingTimeslots[0].karts = [{
+          kartId: 'placeholder',
+          name: 'Kart (details unavailable)',
+          quantity: 1
+        }];
+      }
       
       return {
         _id: bookingObj._id,
