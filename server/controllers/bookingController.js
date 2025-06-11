@@ -20,22 +20,24 @@ const createBooking = asyncHandler(async (req, res) => {
   if (isAdminBooking) {
     // Handle admin booking format
     console.log('Creating admin booking');
-    const { date, timeslots } = req.body;
+    const { date, timeslots, customerName, customerEmail, customerPhone, notes } = req.body;
     
     if (!date || !timeslots || !Array.isArray(timeslots) || timeslots.length === 0) {
       res.status(400);
       throw new Error('Invalid admin booking data. Date and timeslots are required.');
     }
     
-    // Set admin booking defaults
+    // Use client-provided data with fallbacks
     bookingData = {
-      customerName: 'Admin Booking',
-      customerEmail: 'admin@bookid.ee',
-      customerPhone: '123456789',
+      customerName: customerName || 'Admin Booking',
+      customerEmail: customerEmail || 'admin@bookid.ee',
+      customerPhone: customerPhone || '123456789',
       date,
-      notes: 'Created by admin',
+      notes: notes || 'Created by admin',
       status: 'confirmed'
     };
+    
+    console.log('Admin booking client data:', bookingData);
     
     // Process timeslots from admin format
     bookingTimeslots = timeslots.map(ts => ({
@@ -126,14 +128,49 @@ const createBooking = asyncHandler(async (req, res) => {
   
   // Calculate total price based on actual timeslot duration
   let totalPrice = 0;
-  for (const selection of kartSelections) {
-    totalPrice += selection.quantity * (selection.pricePerSlot || 0);
+  
+  // For regular bookings, calculate based on selected karts
+  if (!isAdminBooking) {
+    for (const selection of kartSelections) {
+      totalPrice += selection.quantity * (selection.pricePerSlot || 0);
+    }
   }
   
   // Ensure date is properly converted to a Date object
   const bookingDate = new Date(bookingData.date);
   // Reset the time to midnight to ensure consistent date handling
   bookingDate.setUTCHours(0, 0, 0, 0);
+  
+  // Calculate totalPrice for admin bookings if needed
+  if (isAdminBooking) {
+    try {
+      // Calculate price based on kart selections
+      totalPrice = kartSelections.reduce((total, ks) => {
+        // Find the kart in the database to get its price
+        const kartPrice = ks.pricePerSlot || 10; // Default fallback price
+        return total + (ks.quantity * kartPrice);
+      }, 0);
+      
+      console.log(`Calculated total price for admin booking: ${totalPrice}€`);
+      
+      // Set minimum price
+      if (totalPrice <= 0) {
+        console.log('Using default minimum price for admin booking');
+        totalPrice = 10; // Default minimum price
+      }
+    } catch (error) {
+      console.error('Error calculating price for admin booking:', error);
+      totalPrice = 10; // Default price on error
+    }
+  }
+
+  console.log('Creating booking with data:', {
+    customerName: bookingData.customerName,
+    date: bookingDate,
+    timeslotsCount: bookingTimeslots.length,
+    kartsCount: kartSelections.length,
+    totalPrice
+  });
 
   const booking = await Booking.create({
     ...bookingData,
