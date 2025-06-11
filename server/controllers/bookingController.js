@@ -1268,27 +1268,59 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
   for (const booking of bookingsForDate) {
       const bookingData = booking.toObject();
       
-      // Check in selectedTimeslots array for the specific timeslot
-      // This array stores timeslots for admin bookings
-      if (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) {
-        for (const timeslot of booking.selectedTimeslots) {
-          // Check if any of the selected timeslots match our query
-          if (typeof timeslot === 'object' && timeslot.startTime === startTime && timeslot.endTime === endTime) {
-            console.log(`Found admin booking match: ${booking._id}`);
+      console.log(`Examining booking: ${booking._id}, looking for timeslot ${startTime}-${endTime}`);
+      let bookingFound = false;
+      
+      // ADMIN BOOKING CHECK #1: check timeslots array
+      // This is the array we added in our fix for admin bookings
+      if (booking.timeslots && Array.isArray(booking.timeslots)) {
+        for (const ts of booking.timeslots) {
+          if (ts.startTime === startTime && ts.endTime === endTime) {
+            console.log(`Found admin booking match via timeslots array: ${booking._id}`);
             bookingsForTimeslot.push(booking);
+            bookingFound = true;
             break;
           }
         }
       }
       
-      // Check if the booking's main timeslot matches our query
-      // This handles regular client bookings
-      if (booking.startTime === startTime && booking.endTime === endTime) {
-        console.log(`Found client booking match: ${booking._id}`);
-        bookingsForTimeslot.push(booking);
+      if (bookingFound) continue; // Skip remaining checks if already found
+      
+      // CHECK #2: Check in selectedTimeslots array for the specific timeslot
+      if (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) {
+        for (const timeslot of booking.selectedTimeslots) {
+          // Check both string format ("10:00-10:30") and object format ({startTime, endTime})
+          if (typeof timeslot === 'object' && timeslot.startTime === startTime && timeslot.endTime === endTime) {
+            console.log(`Found booking match via selectedTimeslots object: ${booking._id}`);
+            bookingsForTimeslot.push(booking);
+            bookingFound = true;
+            break;
+          } else if (typeof timeslot === 'string') {
+            // Format: "10:00-10:30"
+            const [bookingStartTime, bookingEndTime] = timeslot.split('-');
+            if (bookingStartTime === startTime && bookingEndTime === endTime) {
+              console.log(`Found booking match via selectedTimeslots string: ${booking._id}`);
+              bookingsForTimeslot.push(booking);
+              bookingFound = true;
+              break;
+            }
+          }
+        }
       }
       
-      // Check in timeslotKartSelections for the specific timeslot
+      if (bookingFound) continue; // Skip remaining checks if already found
+      
+      // CHECK #3: Check if the booking's main timeslot matches our query
+      // This handles regular client bookings
+      if (booking.startTime === startTime && booking.endTime === endTime) {
+        console.log(`Found client booking match via startTime/endTime: ${booking._id}`);
+        bookingsForTimeslot.push(booking);
+        bookingFound = true;
+      }
+      
+      if (bookingFound) continue; // Skip remaining checks if already found
+      
+      // CHECK #4: Check in timeslotKartSelections for the specific timeslot
       // This handles bookings that store timeslot information in the map or as an object
       const timeslotKey = `${startTime}-${endTime}`;
       if (booking.timeslotKartSelections) {
@@ -1298,10 +1330,9 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
           : booking.timeslotKartSelections[timeslotKey];
           
         if (hasTimeslot) {
-          if (!bookingsForTimeslot.some(b => b._id.toString() === booking._id.toString())) {
-            console.log(`Found booking match via timeslotKartSelections: ${booking._id}`);
-            bookingsForTimeslot.push(booking);
-          }
+          console.log(`Found booking match via timeslotKartSelections: ${booking._id}`);
+          bookingsForTimeslot.push(booking);
+          bookingFound = true;
         }
       }
       
@@ -1330,12 +1361,46 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       
       // Check if this booking has the specific timeslot in selectedTimeslots
       if (bookingObj.selectedTimeslots && bookingObj.selectedTimeslots.length > 0) {
-        const matchingTimeslots = bookingObj.selectedTimeslots.filter(ts => 
+        // Check for both object format and string format timeslots
+        const matchingObjectTimeslots = bookingObj.selectedTimeslots.filter(ts => 
           typeof ts === 'object' && ts.startTime === startTime && ts.endTime === endTime
         );
         
-        if (matchingTimeslots.length > 0) {
-          timeslots = matchingTimeslots.map(ts => ({
+        const matchingStringTimeslots = bookingObj.selectedTimeslots.filter(ts => {
+          if (typeof ts === 'string') {
+            const [tsStartTime, tsEndTime] = ts.split('-');
+            return tsStartTime === startTime && tsEndTime === endTime;
+          }
+          return false;
+        });
+        
+        if (matchingObjectTimeslots.length > 0) {
+          timeslots = matchingObjectTimeslots.map(ts => ({
+            startTime: ts.startTime,
+            endTime: ts.endTime,
+            karts: []
+          }));
+        } else if (matchingStringTimeslots.length > 0) {
+          // For string format, create timeslot objects
+          timeslots = matchingStringTimeslots.map(ts => {
+            const [tsStartTime, tsEndTime] = ts.split('-');
+            return {
+              startTime: tsStartTime,
+              endTime: tsEndTime,
+              karts: []
+            };
+          });
+        }
+      }
+      
+      // Also check in the timeslots array (admin bookings)
+      if (timeslots.length === 0 && bookingObj.timeslots && bookingObj.timeslots.length > 0) {
+        const matchingAdminTimeslots = bookingObj.timeslots.filter(ts => 
+          ts.startTime === startTime && ts.endTime === endTime
+        );
+        
+        if (matchingAdminTimeslots.length > 0) {
+          timeslots = matchingAdminTimeslots.map(ts => ({
             startTime: ts.startTime,
             endTime: ts.endTime,
             karts: []
