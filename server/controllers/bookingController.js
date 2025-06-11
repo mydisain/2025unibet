@@ -267,60 +267,103 @@ const createBooking = asyncHandler(async (req, res) => {
   
   // Create the booking with the corrected structure
   try {
-    // Basic validation to ensure we have required fields
-    if (isAdminBooking) {
-      // Make sure we have proper kartSelections format
-      // Each kartSelection needs a kart field that's an ObjectId
-      if (bookingData.kartSelections && Array.isArray(bookingData.kartSelections)) {
-        // Ensure each kart selection has all required fields and valid types
-        bookingData.kartSelections = bookingData.kartSelections.map(ks => ({
-          kart: mongoose.Types.ObjectId.isValid(ks.kart) ? ks.kart : null,
+    console.log('Processing booking data for creation...');
+    
+    // Process kartSelections - CRITICAL PART
+    // We need to ensure that each kartSelection has a kart field with the ObjectId
+    // This can be either passed as kart or as kartId
+    if (bookingData.kartSelections && Array.isArray(bookingData.kartSelections)) {
+      console.log('Processing kartSelections:', bookingData.kartSelections);
+      
+      // Map the kartSelection objects to the expected format
+      const processedKartSelections = bookingData.kartSelections.map(ks => {
+        let kartId;
+        
+        // Handle both formats: kart and kartId
+        if (ks.kartId) {
+          console.log('Found kartId in kartSelection:', ks.kartId);
+          kartId = ks.kartId;
+        } else if (ks.kart) {
+          console.log('Found kart in kartSelection:', ks.kart);
+          kartId = ks.kart;
+        } else {
+          console.warn('No kart or kartId in kartSelection:', ks);
+          return null; // Invalid entry, will be filtered out
+        }
+        
+        // Check if kartId is a valid MongoDB ObjectId
+        if (!mongoose.Types.ObjectId.isValid(kartId)) {
+          console.warn('Invalid kart ID:', kartId);
+          return null;
+        }
+        
+        // Return properly structured kart selection
+        return {
+          kart: kartId, // This is the field expected by the model schema
           quantity: parseInt(ks.quantity) || 1,
           pricePerSlot: parseFloat(ks.pricePerSlot) || 10,
           timeslot: ks.timeslot || ''
-        }));
-        
-        // Filter out any invalid entries (missing kart ObjectIds)
-        bookingData.kartSelections = bookingData.kartSelections.filter(ks => ks.kart);
-      }
+        };
+      }).filter(ks => ks !== null); // Remove null entries
       
-      // Ensure selectedTimeslots is an array of strings
-      if (!bookingData.selectedTimeslots || !Array.isArray(bookingData.selectedTimeslots)) {
-        bookingData.selectedTimeslots = [];
-      }
-      
-      // Ensure we have start and end times
-      if (!bookingData.startTime) bookingData.startTime = '10:00';
-      if (!bookingData.endTime) bookingData.endTime = '10:30';
-      
-      // Make sure duration is a number
-      bookingData.duration = parseInt(bookingData.duration) || 30;
+      // Replace the kartSelections with our processed version
+      bookingData.kartSelections = processedKartSelections;
+      console.log('Processed kartSelections:', processedKartSelections);
+    } else {
+      console.warn('No kartSelections array found in booking data');
+      bookingData.kartSelections = [];
     }
     
-    // Final booking object with all necessary fields
-    let bookingToCreate = {
-      customerName: bookingData.customerName,
-      customerEmail: bookingData.customerEmail,
-      customerPhone: bookingData.customerPhone,
+    // Ensure selectedTimeslots is an array of strings (not objects)
+    if (bookingData.selectedTimeslots) {
+      if (!Array.isArray(bookingData.selectedTimeslots)) {
+        console.warn('selectedTimeslots is not an array, converting...');
+        bookingData.selectedTimeslots = [];
+      } else {
+        // If any element is an object with startTime and endTime, convert to string
+        bookingData.selectedTimeslots = bookingData.selectedTimeslots.map(ts => {
+          if (typeof ts === 'object' && ts.startTime && ts.endTime) {
+            return `${ts.startTime}-${ts.endTime}`;
+          }
+          return ts;
+        });
+      }
+      console.log('Processed selectedTimeslots:', bookingData.selectedTimeslots);
+    } else {
+      console.warn('No selectedTimeslots array found in booking data');
+      bookingData.selectedTimeslots = [];
+    }
+    
+    // Ensure we have all required fields with defaults if missing
+    const finalBookingData = {
+      customerName: bookingData.customerName || 'Anonymous',
+      customerEmail: bookingData.customerEmail || 'admin@bookid.ee',
+      customerPhone: bookingData.customerPhone || '123456789',
       date: bookingDate,
-      startTime: bookingData.startTime,
-      endTime: bookingData.endTime,
-      duration: bookingData.duration,
-      kartSelections: bookingData.kartSelections || [],
+      startTime: bookingData.startTime || '10:00',
+      endTime: bookingData.endTime || '10:30',
+      duration: parseInt(bookingData.duration) || 30,
       selectedTimeslots: bookingData.selectedTimeslots || [],
-      totalPrice,
+      kartSelections: bookingData.kartSelections || [],
+      totalPrice: totalPrice || 0,
       notes: bookingData.notes || '',
       status: isAdminBooking ? 'confirmed' : 'pending'
     };
     
-    // For non-admin bookings, add the processed data
-    if (!isAdminBooking) {
-      bookingToCreate = {
-        ...bookingToCreate,
-        timeslotKartSelections: timeslotKartSelections || {},
-        timeslotKartQuantities: timeslotKartQuantities || {}
-      };
+    // Add timeslot mappings for non-admin bookings
+    if (!isAdminBooking && timeslotKartSelections && timeslotKartQuantities) {
+      finalBookingData.timeslotKartSelections = timeslotKartSelections;
+      finalBookingData.timeslotKartQuantities = timeslotKartQuantities;
+    } else if (bookingData.timeslotKartSelections && bookingData.timeslotKartQuantities) {
+      // Use provided mappings if available
+      finalBookingData.timeslotKartSelections = bookingData.timeslotKartSelections;
+      finalBookingData.timeslotKartQuantities = bookingData.timeslotKartQuantities;
     }
+    
+    console.log('Final booking data to save:', JSON.stringify(finalBookingData, null, 2));
+    
+    // This is our final object to create the booking with
+    const bookingToCreate = finalBookingData;
     
     console.log('Final booking object to create:', JSON.stringify(bookingToCreate));
     const booking = await Booking.create(bookingToCreate);

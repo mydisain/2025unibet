@@ -317,9 +317,53 @@ const AdminTimeslotView = () => {
   
   // Handle client data submission and booking creation
   const handleClientDataSubmit = async (clientData) => {
-    // Prepare booking data to match the expected model structure
+    // Prepare booking data to match the working client-side structure
     const firstTimeslot = selectedTimeslots[0] || { startTime: '10:00', endTime: '10:30' };
+    const lastTimeslot = selectedTimeslots[selectedTimeslots.length - 1] || firstTimeslot;
     
+    // Calculate duration between first and last timeslot
+    const duration = calculateDuration(firstTimeslot.startTime, lastTimeslot.endTime);
+    
+    // Format timeslots as strings (like "10:00-10:15")
+    const formattedTimeslots = selectedTimeslots.map(ts => `${ts.startTime}-${ts.endTime}`);
+    
+    // Create kartSelections with kartId (NOT kart) - this is key
+    const kartSelections = [];
+    
+    // Process all karts across all timeslots
+    selectedTimeslots.forEach(timeslot => {
+      const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
+      const timeslotKarts = timeslotKartSelections[timeslotKey] || [];
+      const timeslotQuantities = timeslotKartQuantities[timeslotKey] || {};
+      
+      timeslotKarts.forEach(kartId => {
+        const kart = karts.find(k => k._id === kartId);
+        const quantity = timeslotQuantities[kartId] || 1;
+        
+        // Find if we already have this kart in the kartSelections array
+        const existingSelection = kartSelections.find(ks => ks.kartId === kartId);
+        
+        if (existingSelection) {
+          // If already exists, just update the quantity
+          existingSelection.quantity += quantity;
+        } else {
+          // Otherwise add a new entry
+          kartSelections.push({
+            kartId: kartId, // Important: Use kartId, not kart
+            quantity: quantity,
+            pricePerSlot: kart?.pricePerSlot || 10,
+            name: kart?.name || 'Unknown Kart'
+          });
+        }
+      });
+    });
+    
+    // Calculate the total price from all kart selections
+    const totalPrice = kartSelections.reduce(
+      (total, selection) => total + (selection.pricePerSlot * selection.quantity), 0
+    );
+    
+    // Create the complete booking data structure like the client-side version
     const bookingData = {
       // Client data
       customerName: clientData.customerName,
@@ -327,55 +371,19 @@ const AdminTimeslotView = () => {
       customerPhone: clientData.customerPhone,
       notes: clientData.notes,
       
-      // Required booking fields according to schema
-      startTime: firstTimeslot.startTime,
-      endTime: firstTimeslot.endTime,
+      // Booking time data
       date: format(selectedDate, 'yyyy-MM-dd'),
+      startTime: firstTimeslot.startTime,
+      endTime: lastTimeslot.endTime,
+      duration: duration,
       
-      // Convert selectedTimeslots to array of strings as required by model
-      selectedTimeslots: selectedTimeslots.map(ts => 
-        `${ts.startTime}-${ts.endTime}`
-      ),
-      
-      // Calculate duration in minutes based on first timeslot
-      duration: calculateDuration(firstTimeslot.startTime, firstTimeslot.endTime),
-      
-      // Create proper kartSelections with kart field (not kartId)
-      kartSelections: selectedTimeslots.flatMap(timeslot => {
-        const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
-        const timeslotKarts = timeslotKartSelections[timeslotKey] || [];
-        const timeslotQuantities = timeslotKartQuantities[timeslotKey] || {};
-        
-        return timeslotKarts.map(kartId => {
-          const kart = karts.find(k => k._id === kartId);
-          return {
-            kart: kartId, // This matches the schema which expects 'kart' not 'kartId'
-            quantity: timeslotQuantities[kartId] || 1,
-            pricePerSlot: kart?.pricePerSlot || 10,
-            timeslot: `${timeslot.startTime}-${timeslot.endTime}`
-          };
-        });
-      }),
-      
-      // Keep the original timeslots data for the backend
-      timeslots: selectedTimeslots.map(timeslot => {
-        const timeslotKey = `${timeslot.startTime}-${timeslot.endTime}`;
-        const timeslotKarts = timeslotKartSelections[timeslotKey] || [];
-        const timeslotQuantities = timeslotKartQuantities[timeslotKey] || {};
-        
-        return {
-          startTime: timeslot.startTime,
-          endTime: timeslot.endTime,
-          karts: timeslotKarts.map(kartId => {
-            const kart = karts.find(k => k._id === kartId);
-            return {
-              kartId,
-              name: kart?.name || 'Unknown Kart',
-              quantity: timeslotQuantities[kartId] || 1
-            };
-          })
-        };
-      })
+      // Important booking data - match client structure exactly
+      selectedTimeslots: formattedTimeslots,
+      kartSelections: kartSelections,
+      timeslotKartSelections: timeslotKartSelections,
+      timeslotKartQuantities: timeslotKartQuantities,
+      totalPrice: totalPrice,
+      status: 'confirmed'
     };
     
     console.log('Booking data to save:', bookingData);
