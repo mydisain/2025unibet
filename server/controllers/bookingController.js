@@ -632,8 +632,46 @@ const getAvailableTimeslots = asyncHandler(async (req, res) => {
       
       // Log all timeslots for debugging
       console.log(`Checking timeslot ${timeslotStr} against booking ${booking._id}`);
+      console.log('Booking data:', JSON.stringify({
+        id: booking._id,
+        date: booking.date, 
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        status: booking.status,
+        hasSelectedTimeslots: booking.selectedTimeslots?.length > 0,
+        hasTimeslots: booking.timeslots?.length > 0
+      }));
       
-      // ONLY check if this specific timeslot is in the booking's selectedTimeslots array
+      // Check for admin bookings that use the 'timeslots' array (from the admin panel)
+      if (booking.timeslots && booking.timeslots.length > 0) {
+        console.log(`Admin booking ${booking._id} has timeslots array:`, booking.timeslots.map(t => `${t.startTime}-${t.endTime}`));
+        
+        // Check if any timeslot in the admin booking matches the current timeslot
+        const isOverlapping = booking.timeslots.some(ts => {
+          const adminTimeslotStr = `${ts.startTime}-${ts.endTime}`;
+          const normalizedAdminTimeslot = normalizeTimeslot(adminTimeslotStr);
+          const normalizedCurrentTimeslot = normalizeTimeslot(timeslotStr);
+          
+          // Check for exact match with normalized format or start time match
+          const exactMatch = normalizedAdminTimeslot === normalizedCurrentTimeslot;
+          const startTimeMatch = ts.startTime === startTime;
+          
+          const matches = exactMatch || startTimeMatch;
+          if (matches) {
+            console.log(`Match found for admin booking timeslot:`);
+            console.log(`  - Admin timeslot: ${adminTimeslotStr}`);
+            console.log(`  - Current timeslot: ${timeslotStr}`);
+          }
+          return matches;
+        });
+        
+        if (isOverlapping) {
+          console.log(`Admin booking ${booking._id} overlaps with timeslot ${timeslotStr}`);
+          return true;
+        }
+      }
+      
+      // ONLY check if this specific timeslot is in the booking's selectedTimeslots array (client bookings)
       if (booking.selectedTimeslots && booking.selectedTimeslots.length > 0) {
         console.log(`Booking ${booking._id} has selectedTimeslots:`, booking.selectedTimeslots);
         
@@ -661,7 +699,7 @@ const getAvailableTimeslots = asyncHandler(async (req, res) => {
           return matches;
         });
         
-        return isOverlapping;
+        if (isOverlapping) return true;
       }
       
       // Legacy fallback for bookings without selectedTimeslots
@@ -685,8 +723,37 @@ const getAvailableTimeslots = asyncHandler(async (req, res) => {
         // Format the current timeslot for comparison
         const timeslotStr = `${startTime}-${addMinutesToTime(startTime, timeslotDuration)}`;
         
+        // Skip if there are no kartSelections (shouldn't happen but check anyway)
+        if (!booking.kartSelections || booking.kartSelections.length === 0) {
+          return total;
+        }
+        
+        // Enhanced debug logging
+        console.log(`Checking kart selections for booking ${booking._id}, timeslot ${timeslotStr}`);
+        console.log('Kart selections:', JSON.stringify(booking.kartSelections));
+        
         // Find this kart in the booking's kartSelections, but only for this specific timeslot
         const kartSelections = booking.kartSelections.filter(selection => {
+          // Check if this selection is for the current kart
+          const isMatchingKart = 
+            (selection.kart && selection.kart.toString() === kart._id.toString()) || 
+            (selection.kartId && selection.kartId === kart._id.toString());
+          
+          if (!isMatchingKart) return false;
+          
+          // For admin bookings with timeslots array
+          if (booking.timeslots && booking.timeslots.length > 0) {
+            // Check if any timeslot in admin booking matches the current timeslot
+            const timeslotMatch = booking.timeslots.some(ts => {
+              const adminTimeslotStr = `${ts.startTime}-${ts.endTime}`;
+              return normalizeTimeslot(adminTimeslotStr) === normalizeTimeslot(timeslotStr);
+            });
+            if (timeslotMatch) {
+              console.log(`Admin booking ${booking._id} kart selection matches for timeslot ${timeslotStr}`);
+            }
+            return timeslotMatch;
+          }
+          
           // Check if this selection is for the current timeslot
           if (selection.timeslot) {
             // If the selection has a timeslot property, check if it matches the current timeslot
@@ -1114,12 +1181,23 @@ const getAdminTimeslots = asyncHandler(async (req, res) => {
     // Calculate availability based on the max karts setting
     const totalAvailability = Math.max(0, maxKartsPerTimeslot - totalBooked);
     
+    // Return the final timeslot data with more detailed booking information
     return {
-      ...timeslot,
+      startTime,
+      endTime: addMinutesToTime(startTime, timeslotDuration),
+      totalKarts: maxKartsPerTimeslot,
+      totalAvailability: Math.max(0, maxKartsPerTimeslot - totalBooked),
+      totalBooked: totalBooked,
       kartAvailability,
-      totalBooked,
-      totalAvailable: totalAvailability,
-      totalKarts
+      // Include minimal booking data to help with debugging
+      bookings: overlappingBookings.map(booking => ({
+        _id: booking._id,
+        customerName: booking.customerName,
+        date: booking.date,
+        status: booking.status,
+        hasTimeslots: booking.timeslots?.length > 0,
+        hasSelectedTimeslots: booking.selectedTimeslots?.length > 0
+      }))
     };
   });
   
