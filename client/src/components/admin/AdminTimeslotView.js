@@ -382,9 +382,27 @@ const AdminTimeslotView = () => {
       dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp}`));
       
     } catch (error) {
+      // Enhanced error logging
       console.error('Error saving booking:', error);
-      setBookingError(error.message || t('booking_error', 'Viga broneeringu salvestamisel'));
-      setSnackbarMessage(error.message || t('booking_error', 'Viga broneeringu salvestamisel'));
+      console.error('Error details:', {
+        message: error.message,
+        response: error.response ? {
+          status: error.response.status,
+          data: error.response.data
+        } : 'No response data',
+        request: error.request ? 'Request was made but no response received' : 'No request made'
+      });
+      
+      // Extract the most helpful error message
+      let errorMessage = t('booking_error', 'Viga broneeringu salvestamisel');
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setBookingError(errorMessage);
+      setSnackbarMessage(errorMessage);
       setSnackbarOpen(true);
     } finally {
       setBookingLoading(false);

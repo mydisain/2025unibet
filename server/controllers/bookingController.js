@@ -4,18 +4,42 @@ const Booking = require('../models/bookingModel');
 const Kart = require('../models/kartModel');
 const Setting = require('../models/settingModel');
 
+// Helper function to calculate duration between two time strings in minutes
+const calculateDuration = (startTime, endTime) => {
+  // Parse times in format 'HH:mm'
+  const [startHours, startMinutes] = startTime.split(':').map(Number);
+  const [endHours, endMinutes] = endTime.split(':').map(Number);
+  
+  // Calculate total minutes for each time
+  const startTotalMinutes = startHours * 60 + startMinutes;
+  const endTotalMinutes = endHours * 60 + endMinutes;
+  
+  // Calculate duration (handle cases where endTime is on the next day)
+  let durationMinutes = endTotalMinutes - startTotalMinutes;
+  if (durationMinutes < 0) {
+    durationMinutes += 24 * 60; // Add 24 hours in minutes
+  }
+  
+  return durationMinutes;
+};
+
 // @desc    Create new booking
 // @route   POST /api/bookings
 // @access  Public
 const createBooking = asyncHandler(async (req, res) => {
   // Check if this is an admin booking (from admin endpoint)
   const isAdminBooking = req.originalUrl.includes('/admin');
+  console.log('Request path:', req.originalUrl, 'isAdminBooking:', isAdminBooking);
+  console.log('Request body:', JSON.stringify(req.body));
   
+  // Declare these variables in outer scope so they're accessible throughout the function
   let bookingData = {};
   let bookingTimeslots = [];
   let timeslotKartSelections = {};
   let timeslotKartQuantities = {};
   let kartSelections = [];
+  
+  try { // Add top-level try-catch for better error handling
   
   if (isAdminBooking) {
     // Handle admin booking format
@@ -34,46 +58,76 @@ const createBooking = asyncHandler(async (req, res) => {
       customerPhone: customerPhone || '123456789',
       date,
       notes: notes || 'Created by admin',
-      status: 'confirmed'
+      status: 'confirmed',
+      duration: timeslots.length > 0 ? 
+                calculateDuration(timeslots[0].startTime, timeslots[0].endTime) : 
+                30 // default duration in minutes
     };
     
     console.log('Admin booking client data:', bookingData);
     
-    // Process timeslots from admin format
+    // Validate that we have valid email and phone data
+    if (!bookingData.customerEmail || !bookingData.customerEmail.includes('@')) {
+      console.warn('Invalid or missing email in admin booking:', bookingData.customerEmail);
+      bookingData.customerEmail = 'admin@bookid.ee'; // Set a default valid email
+    }
+    
+    if (!bookingData.customerPhone || bookingData.customerPhone.length < 3) {
+      console.warn('Invalid or missing phone in admin booking');
+      bookingData.customerPhone = '123456789'; // Set a default valid phone
+    }
+    
+    // Process timeslots from admin format and ensure proper data structure
+    console.log('Processing admin timeslots:', timeslots);
     bookingTimeslots = timeslots.map(ts => ({
-      startTime: ts.startTime,
-      endTime: ts.endTime
+      startTime: ts.startTime || '10:00',
+      endTime: ts.endTime || '10:30'
     }));
     
+    // Defensive validation of startTime and endTime
+    bookingTimeslots = bookingTimeslots.filter(ts => 
+      typeof ts.startTime === 'string' && 
+      typeof ts.endTime === 'string' && 
+      ts.startTime.includes(':') && 
+      ts.endTime.includes(':'));
+    
+    if (bookingTimeslots.length === 0) {
+      throw new Error('Invalid or missing timeslot format. Expected HH:MM format for startTime and endTime');
+    }
+    
     // Process kart selections from admin format
-    timeslots.forEach(ts => {
-      const timeslotKey = `${ts.startTime}-${ts.endTime}`;
-      
-      if (ts.karts && Array.isArray(ts.karts)) {
-        // Store kart selections for this timeslot
-        timeslotKartSelections[timeslotKey] = ts.karts.map(k => k.kartId);
+    if (timeslots && timeslots.length > 0) {
+      timeslots.forEach(ts => {
+        const timeslotKey = `${ts.startTime}-${ts.endTime}`;
         
-        // Store kart quantities for this timeslot
-        const quantities = {};
-        ts.karts.forEach(k => {
-          quantities[k.kartId] = k.quantity;
+        // Verify karts array exists and is valid
+        if (ts.karts && Array.isArray(ts.karts)) {
+          // Store kart selections for this timeslot
+          timeslotKartSelections[timeslotKey] = ts.karts.map(k => k.kartId);
           
-          // Add to overall kart selections for backward compatibility
-          const existingKart = kartSelections.find(ks => ks.kartId === k.kartId);
-          if (existingKart) {
-            existingKart.quantity += k.quantity;
-          } else {
-            kartSelections.push({
-              kartId: k.kartId,
-              name: k.name,
-              quantity: k.quantity
-            });
-          }
-        });
-        
-        timeslotKartQuantities[timeslotKey] = quantities;
-      }
-    });
+          // Store kart quantities for this timeslot
+          const quantities = {};
+          ts.karts.forEach(k => {
+            quantities[k.kartId] = k.quantity || 1;
+            
+            // Add to overall kart selections for backward compatibility
+            const existingKart = kartSelections.find(ks => ks.kartId === k.kartId);
+            if (existingKart) {
+              existingKart.quantity += (k.quantity || 1);
+            } else {
+              kartSelections.push({
+                kartId: k.kartId,
+                name: k.name || `Kart #${k.kartId}`,
+                quantity: k.quantity || 1,
+                pricePerSlot: k.pricePerSlot || 10 // Default price if not provided
+              });
+            }
+          });
+          
+          timeslotKartQuantities[timeslotKey] = quantities;
+        }
+      });
+    }
     
     console.log('Admin booking data processed:');
     console.log('Booking timeslots:', bookingTimeslots);
@@ -144,19 +198,27 @@ const createBooking = asyncHandler(async (req, res) => {
   // Calculate totalPrice for admin bookings if needed
   if (isAdminBooking) {
     try {
-      // Calculate price based on kart selections
-      totalPrice = kartSelections.reduce((total, ks) => {
-        // Find the kart in the database to get its price
-        const kartPrice = ks.pricePerSlot || 10; // Default fallback price
-        return total + (ks.quantity * kartPrice);
-      }, 0);
-      
-      console.log(`Calculated total price for admin booking: ${totalPrice}€`);
-      
-      // Set minimum price
-      if (totalPrice <= 0) {
-        console.log('Using default minimum price for admin booking');
-        totalPrice = 10; // Default minimum price
+      // Make sure we have valid kart selections with prices
+      if (!kartSelections || kartSelections.length === 0) {
+        console.warn('No kart selections found for admin booking, using default price');
+        totalPrice = 10;
+      } else {
+        // Calculate price based on kart selections
+        totalPrice = kartSelections.reduce((total, ks) => {
+          const pricePerSlot = ks.pricePerSlot || 10; // Default price if not provided
+          const quantity = ks.quantity || 1; // Default quantity if not provided
+          const price = quantity * pricePerSlot;
+          console.log(`Kart ${ks.kartId} price: ${pricePerSlot}€ × ${quantity} = ${price}€`);
+          return total + price;
+        }, 0);
+        
+        console.log(`Calculated total price for admin booking: ${totalPrice}€`);
+        
+        // Sanity check and default price
+        if (totalPrice <= 0) {
+          console.log('Calculated price is zero or negative, using default price');
+          totalPrice = 10; // Default minimum price
+        }
       }
     } catch (error) {
       console.error('Error calculating price for admin booking:', error);
@@ -192,6 +254,20 @@ const createBooking = asyncHandler(async (req, res) => {
   } else {
     res.status(400);
     throw new Error('Invalid booking data');
+  }
+  
+  } catch (error) {
+    // Detailed error logging to diagnose admin booking issues
+    console.error('Error in createBooking controller:', error);
+    console.error('Stack trace:', error.stack);
+    
+    // If headers haven't been sent yet, send an appropriate response
+    if (!res.headersSent) {
+      res.status(500).json({
+        message: `Server error creating booking: ${error.message}`,
+        details: isAdminBooking ? 'Error creating admin booking' : 'Error creating public booking'
+      });
+    }
   }
 });
 
