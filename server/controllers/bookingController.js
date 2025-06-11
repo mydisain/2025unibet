@@ -1059,13 +1059,37 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       }
       
       // If we don't have timeslotKarts, try to extract from kartSelections
-      if (timeslotKarts.length === 0 && bookingObj.kartSelections && bookingObj.kartSelections.length > 0) {
-        console.log('Using kartSelections as fallback');
-        timeslotKarts = bookingObj.kartSelections.map(k => ({
-          kartId: k.kartId || k.kart || k._id,
-          name: k.name || 'Unknown Kart',
-          quantity: k.quantity || 1
-        }));
+      if (timeslotKarts.length === 0) {
+        console.log('Looking for kart information in multiple sources');
+        
+        // Try kartSelections array (primary source)
+        if (bookingObj.kartSelections && bookingObj.kartSelections.length > 0) {
+          console.log('Using kartSelections as fallback:', JSON.stringify(bookingObj.kartSelections));
+          timeslotKarts = await Promise.all(bookingObj.kartSelections.map(async k => {
+            const kartId = k.kartId || (k.kart && (typeof k.kart === 'object' ? k.kart._id : k.kart)) || k._id;
+            console.log('Processing kart selection with ID:', kartId);
+            
+            let kartName = k.name;
+            if (!kartName && kartId) {
+              // Try to fetch the kart details from the database
+              try {
+                const kart = await Kart.findById(kartId);
+                if (kart) {
+                  kartName = kart.name;
+                  console.log('Found kart name from database:', kartName);
+                }
+              } catch (err) {
+                console.log('Error fetching kart details:', err.message);
+              }
+            }
+            
+            return {
+              kartId: kartId,
+              name: kartName || 'Unknown Kart',
+              quantity: k.quantity || 1
+            };
+          }));
+        }
       }
       
       // Add timeslot information

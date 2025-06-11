@@ -228,17 +228,19 @@ const AdminBookingsDialog = ({
                                       <Grid item xs={12} sm={6} key={kartIndex}>
                                         <Paper 
                                           sx={{ 
-                                            p: 1, 
-                                            display: 'flex', 
+                                            p: 1,
+                                            display: 'flex',
                                             justifyContent: 'space-between',
+                                            alignItems: 'center',
                                             backgroundColor: kart.quantity > 1 ? '#e8f5e9' : '#fff'
                                           }}
                                         >
-                                          <Typography variant="body2">
-                                            {kart.name || (kart.kartId ? `Kart ID: ${kart.kartId}` : 'Unknown Kart')}
+                                          <Typography variant="body2" fontWeight="medium">
+                                            {kart.name || t('unknown_kart', 'Tundmatu kart')}
+                                            {kart.kartId && <span style={{ fontSize: '0.75rem', color: 'gray', marginLeft: '4px' }}>({kart.kartId.substring(0, 6)})</span>}
                                           </Typography>
-                                          <Typography variant="body2" fontWeight="bold">
-                                            {typeof kart.quantity === 'number' ? kart.quantity : 1} {t('units', 'tk')}
+                                          <Typography variant="caption" color="primary" fontWeight="bold">
+                                            {kart.quantity > 1 ? `${kart.quantity} ${t('items', 'tk')}` : '1 tk'}
                                           </Typography>
                                         </Paper>
                                       </Grid>
