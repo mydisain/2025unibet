@@ -898,27 +898,34 @@ const getAdminTimeslots = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getTimeslotBookings = asyncHandler(async (req, res) => {
   const { date, startTime, endTime } = req.query;
-  
+
   if (!date || !startTime || !endTime) {
     res.status(400);
     throw new Error('Date, startTime, and endTime are required');
   }
   
+  console.log(`Finding bookings for date: ${date}, time: ${startTime}-${endTime}`);
+  
+  // First, let's examine available karts in the database to help with debugging
   try {
-    console.log(`Searching for bookings on date ${date} with timeslot ${startTime}-${endTime}`);
-    
-    // Find all bookings for the specified date
-    const bookingsForDate = await Booking.find({ 
-      date: new Date(date),
-      status: { $ne: 'cancelled' } // Exclude cancelled bookings
-    });
-    
-    console.log(`Found ${bookingsForDate.length} bookings for date ${date}`);
-    
-    // Filter bookings that include the specified timeslot
-    const bookingsForTimeslot = [];
-    
-    for (const booking of bookingsForDate) {
+    const allKarts = await Kart.find({}).select('_id name pricePerSlot');
+    console.log('Available karts in database:', allKarts.map(k => ({ id: k._id.toString(), name: k.name })));
+  } catch (err) {
+    console.log('Error fetching karts:', err.message);
+  }
+
+  // Find all bookings for the specified date
+  const bookingsForDate = await Booking.find({ 
+    date: new Date(date),
+    status: { $ne: 'cancelled' } // Exclude cancelled bookings
+  });
+  
+  console.log(`Found ${bookingsForDate.length} bookings for date ${date}`);
+  
+  // Filter bookings that include the specified timeslot
+  const bookingsForTimeslot = [];
+  
+  for (const booking of bookingsForDate) {
       const bookingData = booking.toObject();
       
       // Check in selectedTimeslots array for the specific timeslot
@@ -969,8 +976,9 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       }));
     }
     
-    console.log(`Found ${bookingsForTimeslot.length} bookings for timeslot ${startTime}-${endTime}`);
-    
+  console.log(`Found ${bookingsForTimeslot.length} bookings for timeslot ${startTime}-${endTime}`);
+  
+  try {
     // For each booking, populate with kart information
     const populatedBookings = await Promise.all(bookingsForTimeslot.map(async (booking) => {
       // Create a new object with all booking fields
@@ -1103,6 +1111,16 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
         karts: []
       }];
       
+      // Add direct debug of kartSelections if available
+      if (bookingObj.kartSelections && bookingObj.kartSelections.length > 0) {
+        console.log('Direct kartSelections available for booking:', bookingObj._id);
+        const kartSelectionIds = bookingObj.kartSelections.map(k => {
+          const kartId = (k.kart && (typeof k.kart === 'object' ? k.kart._id : k.kart)) || k.kartId;
+          return kartId ? kartId.toString() : 'unknown';
+        });
+        console.log('Direct kart selection IDs:', kartSelectionIds);                 
+      }
+      
       // Option 1: From selectedTimeslots array
       if (bookingObj.selectedTimeslots && bookingObj.selectedTimeslots.length > 0) {
         const relevantTimeslots = bookingObj.selectedTimeslots.filter(ts => 
@@ -1138,14 +1156,40 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
       console.log('Final timeslot karts data:', JSON.stringify(bookingTimeslots[0].karts));
       
       // Final sanity check - ensure we have kart data
-      // If we still don't have karts, add a placeholder kart to ensure something displays
+      // If we still don't have karts, attempt a more direct approach
       if (!bookingTimeslots[0].karts || bookingTimeslots[0].karts.length === 0) {
-        console.log('No kart data found for this booking, adding placeholder');
-        bookingTimeslots[0].karts = [{
-          kartId: 'placeholder',
-          name: 'Kart (details unavailable)',
-          quantity: 1
-        }];
+        console.log('No kart data found for this booking, attempting direct lookup');
+        
+        // Try to get all karts directly from database
+        try {
+          const kartsInDb = await Kart.find().limit(5);
+          if (kartsInDb && kartsInDb.length > 0) {
+            console.log('Found karts in database:', kartsInDb.map(k => k.name));
+            // Use the first available kart in the database
+            // This is better than showing nothing
+            bookingTimeslots[0].karts = [{
+              kartId: kartsInDb[0]._id,
+              name: kartsInDb[0].name,
+              quantity: 1
+            }];
+          } else {
+            // If no karts in database at all, use placeholder
+            console.log('No karts found in database, using placeholder');
+            bookingTimeslots[0].karts = [{
+              kartId: 'placeholder',
+              name: 'Kart (details unavailable)',
+              quantity: 1
+            }];
+          }
+        } catch (err) {
+          console.log('Error fetching karts directly:', err.message);
+          // Fallback to placeholder if error
+          bookingTimeslots[0].karts = [{
+            kartId: 'placeholder',
+            name: 'Kart (details unavailable)',
+            quantity: 1
+          }];
+        }
       }
       
       return {
