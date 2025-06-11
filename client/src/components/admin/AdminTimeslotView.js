@@ -27,7 +27,7 @@ import axios from 'axios';
 import axiosInstance from '../../utils/axiosConfig';
 
 // Import actions
-import { getAvailableTimeslots } from '../../redux/slices/bookingSlice';
+import { getAvailableTimeslots, getBookings } from '../../redux/slices/bookingSlice';
 import { getSettings } from '../../redux/slices/settingSlice';
 import { getKarts } from '../../redux/slices/kartSlice';
 
@@ -440,9 +440,20 @@ const AdminTimeslotView = () => {
       setTimeslotKartSelections({});
       setInitialKartSelection(null);
       
-      // Refresh available timeslots
+      // Refresh available timeslots and bookings list
       const timestamp = new Date().getTime();
+      
+      // Refresh timeslots
       dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp}`));
+      
+      // Refresh bookings list - this is crucial for seeing the new booking in the admin panel
+      dispatch(getBookings({ startDate: format(selectedDate, 'yyyy-MM-dd'), endDate: format(selectedDate, 'yyyy-MM-dd') }));
+      
+      // Also add a small delay and fetch again to ensure we get the latest data
+      setTimeout(() => {
+        dispatch(getAvailableTimeslots(`${format(selectedDate, 'yyyy-MM-dd')}?_=${timestamp + 1000}`));
+        dispatch(getBookings({ startDate: format(selectedDate, 'yyyy-MM-dd'), endDate: format(selectedDate, 'yyyy-MM-dd') }));
+      }, 1000);
       
     } catch (error) {
       // Enhanced error logging
