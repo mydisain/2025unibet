@@ -45,24 +45,38 @@ const createBooking = asyncHandler(async (req, res) => {
     console.log('Creating admin booking');
     const { date, timeslots, customerName, customerEmail, customerPhone, notes, selectedTimeslots: reqSelectedTimeslots } = req.body;
     
+    console.log('Request body for admin booking:', JSON.stringify(req.body, null, 2));
+    
     if (!date || !timeslots || !Array.isArray(timeslots) || timeslots.length === 0) {
       res.status(400);
       throw new Error('Invalid admin booking data. Date and timeslots are required.');
     }
+    
+    // Standardize the date format to ensure consistency
+    // Convert date to YYYY-MM-DD format
+    const formattedDate = new Date(date);
+    const standardizedDate = formattedDate.toISOString().split('T')[0];
+    
+    console.log('Date standardization for admin booking:', {
+      input: date,
+      formatted: standardizedDate,
+      isoDate: formattedDate.toISOString()
+    });
     
     // Use client-provided data with fallbacks
     bookingData = {
       customerName: customerName || 'Admin Booking',
       customerEmail: customerEmail || 'admin@bookid.ee',
       customerPhone: customerPhone || '123456789',
-      date,
+      date: standardizedDate, // Store in standardized format
       notes: notes || 'Created by admin',
       status: 'confirmed',
       duration: timeslots.length > 0 ? 
                 calculateDuration(timeslots[0].startTime, timeslots[0].endTime) : 
                 30, // default duration in minutes
       // Store the original timeslots array to ensure we keep it for later reference
-      timeslots: timeslots
+      timeslots: timeslots,
+      isAdminBooking: true // Add a flag to easily identify admin bookings
     };
     
     console.log('Admin booking client data:', bookingData);
@@ -1109,14 +1123,41 @@ const getAdminTimeslots = asyncHandler(async (req, res) => {
   const dateString = date.split('T')[0].split('?')[0]; // Handle both ISO format and query params
   console.log('Normalized date string:', dateString);
   
-  // Find bookings for the selected date
+  // Find bookings for the selected date - must handle different date formats
+  const formattedDate = new Date(dateString);
+  const searchDate = formattedDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+  console.log('Searching for bookings with date formats:', {
+    dateString,
+    formattedDate,
+    searchDate,
+    isoString: formattedDate.toISOString()
+  });
+  
+  // Use a more flexible date matching approach
   const bookings = await Booking.find({
-    date: { $regex: new RegExp(`^${dateString}`) },
+    $or: [
+      // Match ISO format dates (2023-06-11T00:00:00.000Z)
+      { date: { $regex: new RegExp(`^${searchDate}`) } },
+      // Match direct equality for date strings (2023-06-11)
+      { date: searchDate },
+      // Match date objects stored as strings
+      { date: formattedDate.toISOString() }
+    ],
     status: { $ne: 'cancelled' },
   }).populate({
     path: 'kartSelections.kart',
     model: 'Kart'
   });
+  
+  // Log all found bookings with their date format to help debug
+  console.log(`Found ${bookings.length} bookings for date ${dateString} with search patterns:`, 
+    bookings.map(b => ({ 
+      id: b._id.toString(),
+      date: b.date,
+      dateType: typeof b.date,
+      name: b.customerName
+    })));
   
   console.log(`Found ${bookings.length} bookings for date ${dateString}`);
   
@@ -1238,6 +1279,8 @@ const getAdminTimeslots = asyncHandler(async (req, res) => {
 // @access  Private/Admin
 const getTimeslotBookings = asyncHandler(async (req, res) => {
   const { date, startTime, endTime } = req.query;
+  
+  console.log('getTimeslotBookings called with params:', { date, startTime, endTime });
 
   if (!date || !startTime || !endTime) {
     res.status(400);
@@ -1254,11 +1297,37 @@ const getTimeslotBookings = asyncHandler(async (req, res) => {
     console.log('Error fetching karts:', err.message);
   }
 
-  // Find all bookings for the specified date
-  const bookingsForDate = await Booking.find({ 
-    date: new Date(date),
+  // Find all bookings for the specified date - handle different date formats
+  const formattedDate = new Date(date);
+  const searchDate = formattedDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+  
+  console.log('Searching for timeslot bookings with date:', { 
+    raw: date,
+    formatted: searchDate,
+    isoString: formattedDate.toISOString() 
+  });
+  
+  // Use a more flexible date matching approach
+  const bookingsForDate = await Booking.find({
+    $or: [
+      // Match ISO format dates (2023-06-11T00:00:00.000Z)
+      { date: { $regex: new RegExp(`^${searchDate}`) } },
+      // Match direct equality for date strings (2023-06-11)
+      { date: searchDate },
+      // Match date objects stored as strings
+      { date: formattedDate.toISOString() }
+    ],
     status: { $ne: 'cancelled' } // Exclude cancelled bookings
   });
+  
+  console.log(`Retrieved ${bookingsForDate.length} bookings for date ${date}:`, 
+    bookingsForDate.map(b => ({
+      id: b._id.toString(),
+      date: b.date,
+      customerName: b.customerName,
+      hasTimeslots: !!(b.timeslots && b.timeslots.length > 0),
+      hasSelectedTimeslots: !!(b.selectedTimeslots && b.selectedTimeslots.length > 0)
+    })));
   
   console.log(`Found ${bookingsForDate.length} bookings for date ${date}`);
   
