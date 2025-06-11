@@ -353,10 +353,11 @@ const AdminTimeslotView = () => {
       }
       
       // Make API call to save booking
-      const response = await axios.post('/api/bookings/admin', bookingData, {
+      // Using axiosInstance instead of axios to ensure correct base URL
+      const response = await axiosInstance.post('/api/bookings/admin', bookingData, {
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
+          // Authorization header is already added by axiosInstance interceptor
         }
       });
       
