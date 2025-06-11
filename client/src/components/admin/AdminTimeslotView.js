@@ -379,6 +379,11 @@ const AdminTimeslotView = () => {
       
       // Important booking data - match client structure exactly
       selectedTimeslots: formattedTimeslots,
+      // CRITICAL: Add the timeslots field that the backend controller expects
+      timeslots: selectedTimeslots.map(ts => ({
+        startTime: ts.startTime,
+        endTime: ts.endTime
+      })),
       kartSelections: kartSelections,
       timeslotKartSelections: timeslotKartSelections,
       timeslotKartQuantities: timeslotKartQuantities,
