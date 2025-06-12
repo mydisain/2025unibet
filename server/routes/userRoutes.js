@@ -16,7 +16,9 @@ const { protect, admin } = require('../middleware/authMiddleware');
 // Public routes
 router.post('/login', loginUser);
 
-// Temporary route for creating admin users (remove in production)
+// EMERGENCY ADMIN CREATION ROUTE - REMOVE AFTER USE
+// This endpoint has NO AUTHENTICATION and is ONLY for initial setup
+// ⚠️ SECURITY RISK - REMOVE IMMEDIATELY AFTER CREATING NEEDED ADMINS ⚠️
 router.post('/create-admin', createAdminUser);
 
 // Protected routes
