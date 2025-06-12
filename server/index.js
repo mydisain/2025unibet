@@ -85,7 +85,59 @@ if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
 
-// Routes
+// EMERGENCY ADMIN CREATION ENDPOINT (REMOVE AFTER USE!!)
+// This bypasses all auth middleware and is a security risk
+app.post('/emergency-create-admin', async (req, res) => {
+  try {
+    const User = require('./models/userModel');
+    const { name, email, password } = req.body;
+    
+    console.log('Emergency admin creation attempt for:', { name, email });
+    
+    // Input validation
+    if (!name || !email || !password) {
+      console.error('Missing required fields');
+      return res.status(400).json({ message: 'Please provide name, email, and password' });
+    }
+    
+    // Check if user exists
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      console.error('User already exists:', email);
+      return res.status(400).json({ message: 'User already exists' });
+    }
+    
+    // Create admin user
+    const user = await User.create({
+      name,
+      email,
+      password,
+      isAdmin: true
+    });
+    
+    if (user) {
+      console.log('EMERGENCY ADMIN USER CREATED:', { name, email });
+      return res.status(201).json({
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        isAdmin: user.isAdmin,
+        message: 'Admin created successfully - REMOVE THIS ENDPOINT IMMEDIATELY!'
+      });
+    } else {
+      console.error('Failed to create admin user');
+      return res.status(400).json({ message: 'Invalid user data' });
+    }
+  } catch (error) {
+    console.error('Emergency admin creation error:', error);
+    return res.status(500).json({ 
+      message: 'Server error creating admin', 
+      error: error.message 
+    });
+  }
+});
+
+// Regular API routes
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/karts', require('./routes/kartRoutes'));
 app.use('/api/kart-types', require('./routes/kartTypeRoutes'));
