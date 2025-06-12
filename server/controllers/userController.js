@@ -227,6 +227,49 @@ const deleteUser = asyncHandler(async (req, res) => {
   }
 });
 
+// @desc    Create a new admin user (temporary endpoint for setup)
+// @route   POST /api/users/create-admin
+// @access  Public (should be removed after initial setup)
+const createAdminUser = asyncHandler(async (req, res) => {
+  const { name, email, password } = req.body;
+
+  // Input validation
+  if (!name || !email || !password) {
+    res.status(400);
+    throw new Error('Please provide name, email, and password');
+  }
+  
+  // Check if user exists
+  const userExists = await User.findOne({ email });
+
+  if (userExists) {
+    res.status(400);
+    throw new Error('User already exists');
+  }
+
+  // Create user with admin privileges
+  const user = await User.create({
+    name,
+    email,
+    password,
+    isAdmin: true, // Always create as admin
+  });
+
+  if (user) {
+    console.log(`Admin user created: ${email}`);
+    res.status(201).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      isAdmin: user.isAdmin,
+      token: generateToken(user._id),
+    });
+  } else {
+    res.status(400);
+    throw new Error('Invalid user data');
+  }
+});
+
 module.exports = {
   loginUser,
   registerUser,
@@ -236,4 +279,5 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
+  createAdminUser,
 };

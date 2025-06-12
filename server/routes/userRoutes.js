@@ -16,6 +16,9 @@ const { protect, admin } = require('../middleware/authMiddleware');
 // Public routes
 router.post('/login', loginUser);
 
+// Temporary route for creating admin users (remove in production)
+router.post('/create-admin', createAdminUser);
+
 // Protected routes
 router.route('/profile')
   .get(protect, getUserProfile)
