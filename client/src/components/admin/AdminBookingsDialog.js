@@ -44,7 +44,21 @@ const AdminBookingsDialog = ({
       return [];
     }
     
-    console.log('Received bookings data:', JSON.stringify(bookings));
+    console.log('Received bookings data:', bookings?.length || 0, 'bookings');
+    
+    // Add detailed logging of timeslots and kart data for debugging
+    if (Array.isArray(bookings) && bookings.length > 0) {
+      bookings.forEach((booking, idx) => {
+        if (booking && booking.timeslots && Array.isArray(booking.timeslots)) {
+          console.log(`Booking ${idx} (${booking._id}) - Timeslots:`, booking.timeslots.length);
+          booking.timeslots.forEach((ts, tsIdx) => {
+            console.log(`  Timeslot ${tsIdx}: ${ts.startTime}-${ts.endTime} - Karts:`, 
+              ts.karts ? `${ts.karts.length} karts` : 'no karts',
+              ts.karts ? ts.karts.map(k => k?.name || 'unnamed') : []);
+          });
+        }
+      });
+    }
     
     bookings.forEach(booking => {
       // Ensure booking object has necessary properties
@@ -232,16 +246,33 @@ const AdminBookingsDialog = ({
                                             display: 'flex',
                                             justifyContent: 'space-between',
                                             alignItems: 'center',
-                                            backgroundColor: kart.quantity > 1 ? '#e8f5e9' : '#fff'
+                                            backgroundColor: kart.quantity > 1 ? '#e8f5e9' : '#f5f5f5',
+                                            border: '1px solid',
+                                            borderColor: kart.name?.includes('Unknown') || kart.name?.includes('unavailable') ? '#ffcdd2' : '#e0e0e0'
                                           }}
                                         >
-                                          <Typography variant="body2" fontWeight="medium">
-                                            {kart.name || t('unknown_kart', 'Tundmatu kart')}
-                                            {kart.kartId && <span style={{ fontSize: '0.75rem', color: 'gray', marginLeft: '4px' }}>({kart.kartId.substring(0, 6)})</span>}
-                                          </Typography>
-                                          <Typography variant="caption" color="primary" fontWeight="bold">
-                                            {kart.quantity > 1 ? `${kart.quantity} ${t('items', 'tk')}` : '1 tk'}
-                                          </Typography>
+                                          <Box>
+                                            <Typography variant="body2" fontWeight="medium">
+                                              {kart.name || t('unknown_kart', 'Tundmatu kart')}
+                                            </Typography>
+                                            {kart.kartId && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                                              ID: {typeof kart.kartId === 'string' && kart.kartId.length > 10 ? 
+                                                `${kart.kartId.substring(0, 10)}...` : kart.kartId}
+                                            </Typography>}
+                                          </Box>
+                                          <Box sx={{ 
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            backgroundColor: kart.quantity > 1 ? '#4caf50' : '#2196f3',
+                                            color: 'white',
+                                            px: 1,
+                                            py: 0.5,
+                                            borderRadius: 1
+                                          }}>
+                                            <Typography variant="caption" fontWeight="bold">
+                                              {kart.quantity > 1 ? `${kart.quantity} ${t('items', 'tk')}` : '1 tk'}
+                                            </Typography>
+                                          </Box>
                                         </Paper>
                                       </Grid>
                                     );

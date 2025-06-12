@@ -17,8 +17,8 @@ dotenv.config();
 
 // Set default MongoDB URI if not provided in environment
 if (!process.env.MONGODB_URI) {
-  process.env.MONGODB_URI = 'mongodb+srv://admin:admin123@cluster0.mongodb.net/kardikeskus?retryWrites=true&w=majority';
-  console.log('Using default MongoDB URI');
+  process.env.MONGODB_URI = 'mongodb://atlas-sql-67f3b9adeb8761049845c555-0y7zr.a.query.mongodb.net/kart-booking?ssl=true&authSource=admin';
+  console.log('Using MongoDB Atlas URI for kart-booking database');
 }
 
 // Set default JWT secret if not provided
@@ -49,37 +49,32 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// CORS Configuration - Allow all origins for development
-app.use(cors());
+// CORS Configuration for production
+const corsOptions = {
+  origin: [
+    'http://localhost:3009',               // Local development
+    'https://unibet.bookid.ee',            // Production on zone.ee
+    'https://www.unibet.bookid.ee',        // www subdomain
+    /\.bookid\.ee$/,                     // Any subdomain of bookid.ee
+    /https?:\/\/.*\.zone\.ee/          // Any zone.ee domain
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
+  credentials: true,
+  maxAge: 86400 // 24 hours
+};
 
-// Add explicit CORS headers to all responses for maximum compatibility
+app.use(cors(corsOptions));
+
+// Log requests for debugging
 app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'http://localhost:3009');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
+  console.log(`${new Date().toISOString()} - Request from origin: ${req.headers.origin || 'Unknown'}`);
+  console.log(`${new Date().toISOString()} - Request method: ${req.method}`);
+  console.log(`${new Date().toISOString()} - Request path: ${req.path}`);
   
-  // Handle preflight OPTIONS requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  // Log the request for debugging
-  console.log(`${new Date().toISOString()} - Request from origin:`, req.headers.origin);
-  console.log(`${new Date().toISOString()} - Request method:`, req.method);
-  console.log(`${new Date().toISOString()} - Request path:`, req.path);
-  
-  // Set permissive CORS headers for all responses
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', '*');
-  res.header('Access-Control-Max-Age', '86400'); // 24 hours
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  // Handle preflight requests immediately
-  if (req.method === 'OPTIONS') {
-    console.log(`${new Date().toISOString()} - Responding to OPTIONS preflight request`);
-    return res.status(200).end();
+  // Additional logging for admin-related requests
+  if (req.path.includes('/admin') || req.path.includes('/bookings')) {
+    console.log(`${new Date().toISOString()} - Admin request headers:`, JSON.stringify(req.headers));
   }
   
   next();

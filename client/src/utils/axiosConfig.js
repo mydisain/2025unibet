@@ -11,6 +11,11 @@ const axiosInstance = axios.create({
 
 // For local development (uncomment when needed):
 // const axiosInstance = axios.create({
+//   baseURL: 'http://localhost:5004', // Local development server
+// });
+
+// For local development (uncomment when needed):
+// const axiosInstance = axios.create({
 //   baseURL: 'http://localhost:5000', // Local development server
 // });
 
